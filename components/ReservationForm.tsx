@@ -2,6 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { copy } from "@/lib/i18n";
+import {
+  addDays,
+  formatDateValue,
+  getAvailableTimeOptions,
+  isPastDateValue,
+  parseDateValue
+} from "@/lib/reservationAvailability";
 import type {
   ReservationFormValues,
   RestaurantSettings,
@@ -23,7 +30,6 @@ type ReservationApiResponse = {
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const defaultTimeOptions = ["12:30", "13:00", "13:30", "19:00", "19:30", "20:00", "20:30"];
 const dateWindowSize = 7;
 const localeByLanguage: Record<WidgetLanguage, string> = {
   en: "en-GB",
@@ -36,86 +42,9 @@ const dateCardWeekdays: Record<WidgetLanguage, string[]> = {
   zh: ["日", "一", "二", "三", "四", "五", "六"]
 };
 
-function formatDateValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateValue(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  return new Date(year, (month || 1) - 1, day || 1);
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
-}
-
 function getNextWeekendDate(date: Date) {
   const daysUntilSaturday = (6 - date.getDay() + 7) % 7 || 7;
   return addDays(date, daysUntilSaturday);
-}
-
-function parseTimeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return null;
-  }
-
-  return hours * 60 + minutes;
-}
-
-function formatMinutesAsTime(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-
-  return `${String(hours).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
-}
-
-function getAvailableTimeOptions(dateValue: string, settings: RestaurantSettings) {
-  if (!dateValue) return [];
-  if (settings.opening_hours.length === 0) return defaultTimeOptions;
-
-  const selectedDay = parseDateValue(dateValue).getDay();
-  const matchingHours = settings.opening_hours.filter(
-    (openingHour) => openingHour.day_of_week === selectedDay
-  );
-
-  if (matchingHours.length === 0 || matchingHours.every((openingHour) => openingHour.is_closed)) {
-    return [];
-  }
-
-  const slots = matchingHours.flatMap((openingHour) => {
-    if (openingHour.is_closed) return [];
-
-    const start = parseTimeToMinutes(openingHour.opens_at);
-    const close = parseTimeToMinutes(openingHour.closes_at);
-    const lastReservation = parseTimeToMinutes(
-      openingHour.last_reservation_time || openingHour.closes_at
-    );
-
-    if (start === null || close === null || lastReservation === null) {
-      return [];
-    }
-
-    const firstSlot = Math.ceil(start / 30) * 30;
-    const lastSlot = Math.min(close, lastReservation);
-    const daySlots: string[] = [];
-
-    for (let slot = firstSlot; slot <= lastSlot; slot += 30) {
-      daySlots.push(formatMinutesAsTime(slot));
-    }
-
-    return daySlots;
-  });
-
-  return Array.from(new Set(slots)).sort();
 }
 
 function formatSelectedDate(dateValue: string, language: WidgetLanguage) {
@@ -147,7 +76,8 @@ export function ReservationForm({ settings, language }: Props) {
   const t = copy[language];
   const minPartySize = Math.max(1, settings.min_party_size || 1);
   const initialPartySize = Math.max(2, minPartySize);
-  const today = useMemo(() => formatDateValue(new Date()), []);
+  const [now, setNow] = useState(() => new Date());
+  const today = useMemo(() => formatDateValue(now), [now]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -167,6 +97,12 @@ export function ReservationForm({ settings, language }: Props) {
     privacy_policy_version: settings.privacy_policy_version,
     website: ""
   });
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const dateQuickOptions = useMemo(() => {
     const todayDate = parseDateValue(today);
@@ -203,15 +139,20 @@ export function ReservationForm({ settings, language }: Props) {
     });
   }, [dateWindowStart, language]);
   const availableTimeOptions = useMemo(
-    () => getAvailableTimeOptions(values.date, settings),
-    [settings, values.date]
+    () => getAvailableTimeOptions(values.date, settings, now),
+    [settings, values.date, now]
   );
 
   useEffect(() => {
+    if (values.date && isPastDateValue(values.date, today)) {
+      setValues((current) => ({ ...current, date: today, time: "" }));
+      return;
+    }
+
     if (values.time && !availableTimeOptions.includes(values.time)) {
       setValues((current) => ({ ...current, time: "" }));
     }
-  }, [availableTimeOptions, values.time]);
+  }, [availableTimeOptions, today, values.date, values.time]);
 
   function updateValue<K extends keyof ReservationFormValues>(
     key: K,
@@ -230,6 +171,8 @@ export function ReservationForm({ settings, language }: Props) {
     if (values.email && !emailPattern.test(values.email)) nextErrors.email = t.invalidEmail;
     if (!values.date) nextErrors.date = t.required;
     if (!values.time) nextErrors.time = availableTimeOptions.length > 0 ? t.required : t.noTimes;
+    if (values.date && isPastDateValue(values.date, today)) nextErrors.date = t.required;
+    if (values.time && !availableTimeOptions.includes(values.time)) nextErrors.time = t.noTimes;
     if (!Number.isInteger(values.party_size) || values.party_size < minPartySize) {
       nextErrors.party_size = formatMinimumGuestsMessage(t.minGuests, minPartySize);
     }

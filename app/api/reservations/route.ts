@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getRestaurantSettings } from "@/lib/restaurants";
+import { isReservationTimeAvailable } from "@/lib/reservationAvailability";
 import { validateReservationInput } from "@/lib/validation";
 
 const validationMessage = "Please check the reservation details and try again.";
@@ -46,6 +48,29 @@ export async function POST(request: Request) {
       { success: true, message: successMessage },
       { status: 200 }
     );
+  }
+
+  if (validation.payload.restaurant_slug) {
+    const settings = await getRestaurantSettings(validation.payload.restaurant_slug);
+
+    if (
+      !settings ||
+      !isReservationTimeAvailable(
+        validation.payload.date,
+        validation.payload.time,
+        settings,
+        new Date()
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "UNAVAILABLE",
+          message: unavailableMessage
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const webhookUrl = process.env.N8N_RESERVATION_WEBHOOK_URL;

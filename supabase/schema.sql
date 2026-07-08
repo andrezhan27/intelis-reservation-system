@@ -67,5 +67,32 @@ using (
   )
 );
 
+-- Some existing projects use public.opening_hours for the same widget data.
+-- Keep the policy in sync so the app can read either table name.
+do $$
+begin
+  if to_regclass('public.opening_hours') is not null then
+    alter table public.opening_hours enable row level security;
+
+    drop policy if exists "Public can read active widget opening hours"
+    on public.opening_hours;
+
+    create policy "Public can read active widget opening hours"
+    on public.opening_hours
+    for select
+    to anon
+    using (
+      exists (
+        select 1
+        from public.restaurants
+        where restaurants.id = opening_hours.restaurant_id
+          and restaurants.active = true
+          and restaurants.booking_widget_enabled = true
+          and restaurants.slug is not null
+      )
+    );
+  end if;
+end $$;
+
 -- Booking inserts should still be done by n8n/server-side code, not by the
 -- public widget anon key.

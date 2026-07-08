@@ -20,7 +20,8 @@ type RestaurantRow = {
 };
 
 type OpeningHourRow = {
-  day_of_week: number | null;
+  day_of_week?: number | string | null;
+  dow_id?: number | null;
   opens_at: string | null;
   closes_at: string | null;
   last_reservation_time: string | null;
@@ -52,9 +53,66 @@ const openingHourColumns = [
   "last_reservation_time",
   "is_closed"
 ].join(",");
+const legacyOpeningHourColumns = openingHourColumns;
+const publicOpeningHourColumns = [
+  "dow_id",
+  "day_of_week",
+  "opens_at",
+  "closes_at",
+  "last_reservation_time",
+  "is_closed"
+].join(",");
+
+const dayNameToIndex: Record<string, number> = {
+  sunday: 0,
+  sun: 0,
+  domingo: 0,
+  monday: 1,
+  mon: 1,
+  segunda: 1,
+  tuesday: 2,
+  tue: 2,
+  tues: 2,
+  terca: 2,
+  wednesday: 3,
+  wed: 3,
+  quarta: 3,
+  thursday: 4,
+  thu: 4,
+  thurs: 4,
+  quinta: 4,
+  friday: 5,
+  fri: 5,
+  sexta: 5,
+  saturday: 6,
+  sat: 6,
+  sabado: 6
+};
 
 function normalizeTimeValue(time: string | null) {
   return time?.slice(0, 5) || "";
+}
+
+function normalizeDayOfWeek(row: OpeningHourRow) {
+  if (typeof row.dow_id === "number") {
+    return row.dow_id;
+  }
+
+  if (typeof row.day_of_week === "number") {
+    return row.day_of_week;
+  }
+
+  if (typeof row.day_of_week === "string") {
+    const dayName = row.day_of_week
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return dayNameToIndex[dayName] ?? -1;
+  }
+
+  return -1;
 }
 
 function normalizeOpeningHours(rows: OpeningHourRow[] | null): RestaurantOpeningHour[] {
@@ -62,7 +120,7 @@ function normalizeOpeningHours(rows: OpeningHourRow[] | null): RestaurantOpening
 
   return rows
     .map((row) => ({
-      day_of_week: row.day_of_week ?? -1,
+      day_of_week: normalizeDayOfWeek(row),
       opens_at: normalizeTimeValue(row.opens_at),
       closes_at: normalizeTimeValue(row.closes_at),
       last_reservation_time: row.last_reservation_time
@@ -71,6 +129,33 @@ function normalizeOpeningHours(rows: OpeningHourRow[] | null): RestaurantOpening
       is_closed: row.is_closed === true
     }))
     .filter((row) => row.day_of_week >= 0 && row.day_of_week <= 6);
+}
+
+async function getOpeningHoursData(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
+  restaurantId: string
+) {
+  const restaurantOpeningHoursResult = await supabase
+    .from("restaurant_opening_hours")
+    .select(legacyOpeningHourColumns)
+    .eq("restaurant_id", restaurantId)
+    .order("day_of_week", { ascending: true })
+    .order("opens_at", { ascending: true })
+    .returns<OpeningHourRow[]>();
+
+  if (restaurantOpeningHoursResult.data?.length) {
+    return restaurantOpeningHoursResult.data;
+  }
+
+  const openingHoursResult = await supabase
+    .from("opening_hours")
+    .select(publicOpeningHourColumns)
+    .eq("restaurant_id", restaurantId)
+    .order("dow_id", { ascending: true })
+    .order("opens_at", { ascending: true })
+    .returns<OpeningHourRow[]>();
+
+  return openingHoursResult.data || restaurantOpeningHoursResult.data;
 }
 
 export async function getRestaurantSettings(
@@ -107,13 +192,7 @@ export async function getRestaurantSettings(
     return null;
   }
 
-  const { data: openingHoursData } = await supabase
-    .from("restaurant_opening_hours")
-    .select(openingHourColumns)
-    .eq("restaurant_id", data.id)
-    .order("day_of_week", { ascending: true })
-    .order("opens_at", { ascending: true })
-    .returns<OpeningHourRow[]>();
+  const openingHoursData = await getOpeningHoursData(supabase, data.id);
 
   return {
     restaurant_id: data.id,
