@@ -74,6 +74,9 @@ begin
   if to_regclass('public.opening_hours') is not null then
     alter table public.opening_hours enable row level security;
 
+    create index if not exists opening_hours_restaurant_dow_idx
+    on public.opening_hours (restaurant_id, dow_id, opens_at);
+
     drop policy if exists "Public can read active widget opening hours"
     on public.opening_hours;
 

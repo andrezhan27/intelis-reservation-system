@@ -3,6 +3,15 @@ import { getFontFamilyStack } from "@/lib/fonts";
 import { getSupabaseAnonClient } from "@/lib/supabase";
 import type { RestaurantOpeningHour, RestaurantSettings } from "@/lib/types";
 
+const settingsCacheTtlMs = 5 * 60 * 1000;
+const settingsCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    value: RestaurantSettings | null;
+  }
+>();
+
 type RestaurantRow = {
   id: string;
   slug: string;
@@ -135,18 +144,6 @@ async function getOpeningHoursData(
   supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
   restaurantId: string
 ) {
-  const restaurantOpeningHoursResult = await supabase
-    .from("restaurant_opening_hours")
-    .select(legacyOpeningHourColumns)
-    .eq("restaurant_id", restaurantId)
-    .order("day_of_week", { ascending: true })
-    .order("opens_at", { ascending: true })
-    .returns<OpeningHourRow[]>();
-
-  if (restaurantOpeningHoursResult.data?.length) {
-    return restaurantOpeningHoursResult.data;
-  }
-
   const openingHoursResult = await supabase
     .from("opening_hours")
     .select(publicOpeningHourColumns)
@@ -155,10 +152,22 @@ async function getOpeningHoursData(
     .order("opens_at", { ascending: true })
     .returns<OpeningHourRow[]>();
 
-  return openingHoursResult.data || restaurantOpeningHoursResult.data;
+  if (openingHoursResult.data?.length) {
+    return openingHoursResult.data;
+  }
+
+  const restaurantOpeningHoursResult = await supabase
+    .from("restaurant_opening_hours")
+    .select(legacyOpeningHourColumns)
+    .eq("restaurant_id", restaurantId)
+    .order("day_of_week", { ascending: true })
+    .order("opens_at", { ascending: true })
+    .returns<OpeningHourRow[]>();
+
+  return restaurantOpeningHoursResult.data || openingHoursResult.data;
 }
 
-export async function getRestaurantSettings(
+async function fetchRestaurantSettings(
   restaurantSlug: string
 ): Promise<RestaurantSettings | null> {
   const supabase = getSupabaseAnonClient();
@@ -211,4 +220,24 @@ export async function getRestaurantSettings(
     privacy_policy_version: data.privacy_policy_version || "current",
     terms_url: null
   };
+}
+
+export async function getRestaurantSettings(
+  restaurantSlug: string
+): Promise<RestaurantSettings | null> {
+  const cacheKey = restaurantSlug.trim().toLowerCase();
+  const cachedSettings = settingsCache.get(cacheKey);
+
+  if (cachedSettings && cachedSettings.expiresAt > Date.now()) {
+    return cachedSettings.value;
+  }
+
+  const settings = await fetchRestaurantSettings(restaurantSlug);
+
+  settingsCache.set(cacheKey, {
+    expiresAt: Date.now() + settingsCacheTtlMs,
+    value: settings
+  });
+
+  return settings;
 }
