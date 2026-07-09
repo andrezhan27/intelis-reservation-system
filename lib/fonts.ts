@@ -1,7 +1,7 @@
 const SYSTEM_FONT_STACK =
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-export const DEFAULT_FONT_FAMILY = `Inter, ${SYSTEM_FONT_STACK}`;
+export const DEFAULT_FONT_FAMILY = SYSTEM_FONT_STACK;
 
 const GENERIC_FONT_FAMILIES = new Set([
   "cursive",
@@ -18,6 +18,7 @@ const GENERIC_FONT_FAMILIES = new Set([
   "ui-sans-serif",
   "ui-serif"
 ]);
+const LOCAL_OR_SYSTEM_FONT_FAMILIES = new Set(["inter"]);
 
 function stripOuterQuotes(value: string) {
   const trimmed = value.trim();
@@ -62,7 +63,13 @@ export function getFontFamilyStack(fontFamily: string | null) {
 export function getGoogleFontStylesheetUrl(fontFamily: string) {
   const primaryFontFamily = getPrimaryFontFamily(fontFamily);
 
-  if (!primaryFontFamily || GENERIC_FONT_FAMILIES.has(primaryFontFamily.toLowerCase())) {
+  const normalizedPrimaryFontFamily = primaryFontFamily.toLowerCase();
+
+  if (
+    !primaryFontFamily ||
+    GENERIC_FONT_FAMILIES.has(normalizedPrimaryFontFamily) ||
+    LOCAL_OR_SYSTEM_FONT_FAMILIES.has(normalizedPrimaryFontFamily)
+  ) {
     return null;
   }
 

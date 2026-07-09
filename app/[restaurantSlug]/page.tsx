@@ -4,6 +4,8 @@ import { getGoogleFontStylesheetUrl } from "@/lib/fonts";
 import { copy } from "@/lib/i18n";
 import { getRestaurantSettings } from "@/lib/restaurants";
 
+export const revalidate = 300;
+
 type PageProps = {
   params: Promise<{
     restaurantSlug: string;

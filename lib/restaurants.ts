@@ -1,9 +1,11 @@
+import { unstable_cache } from "next/cache";
 import { normalizeLanguage } from "@/lib/i18n";
 import { getFontFamilyStack } from "@/lib/fonts";
 import { getSupabaseAnonClient } from "@/lib/supabase";
 import type { RestaurantOpeningHour, RestaurantSettings } from "@/lib/types";
 
-const settingsCacheTtlMs = 5 * 60 * 1000;
+export const restaurantSettingsCacheSeconds = 5 * 60;
+const settingsCacheTtlMs = restaurantSettingsCacheSeconds * 1000;
 const settingsCache = new Map<
   string,
   {
@@ -222,6 +224,12 @@ async function fetchRestaurantSettings(
   };
 }
 
+const getCachedRestaurantSettings = unstable_cache(
+  async (restaurantSlug: string) => fetchRestaurantSettings(restaurantSlug),
+  ["restaurant-settings"],
+  { revalidate: restaurantSettingsCacheSeconds }
+);
+
 export async function getRestaurantSettings(
   restaurantSlug: string
 ): Promise<RestaurantSettings | null> {
@@ -232,7 +240,7 @@ export async function getRestaurantSettings(
     return cachedSettings.value;
   }
 
-  const settings = await fetchRestaurantSettings(restaurantSlug);
+  const settings = await getCachedRestaurantSettings(restaurantSlug.trim());
 
   settingsCache.set(cacheKey, {
     expiresAt: Date.now() + settingsCacheTtlMs,
