@@ -1,9 +1,6 @@
 import type { RestaurantSettings } from "@/lib/types";
 
-const defaultServiceRanges = [
-  { startsAt: "12:00", lastReservationAt: "14:30" },
-  { startsAt: "18:00", lastReservationAt: "22:30" }
-];
+const slotIntervalMinutes = 30;
 
 export function formatDateValue(date: Date) {
   const year = date.getFullYear();
@@ -42,27 +39,6 @@ function formatMinutesAsTime(minutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
-function buildTimeOptionsFromRanges(
-  ranges: Array<{ startsAt: string; lastReservationAt: string }>
-) {
-  return ranges.flatMap((range) => {
-    const start = parseTimeToMinutes(range.startsAt);
-    const lastReservation = parseTimeToMinutes(range.lastReservationAt);
-
-    if (start === null || lastReservation === null) {
-      return [];
-    }
-
-    const slots: string[] = [];
-
-    for (let slot = start; slot <= lastReservation; slot += 30) {
-      slots.push(formatMinutesAsTime(slot));
-    }
-
-    return slots;
-  });
-}
-
 function getMinutesSinceMidnight(date: Date) {
   const minutes = date.getHours() * 60 + date.getMinutes();
 
@@ -84,14 +60,6 @@ export function getAvailableTimeOptions(
 
   const currentTimeMinimum =
     dateValue === todayValue ? getMinutesSinceMidnight(now) : null;
-
-  if (settings.opening_hours.length === 0) {
-    return buildTimeOptionsFromRanges(defaultServiceRanges).filter((time) => {
-      const slot = parseTimeToMinutes(time);
-
-      return slot !== null && (currentTimeMinimum === null || slot >= currentTimeMinimum);
-    });
-  }
 
   const selectedDay = parseDateValue(dateValue).getDay();
   const matchingHours = settings.opening_hours.filter(
@@ -115,13 +83,13 @@ export function getAvailableTimeOptions(
       return [];
     }
 
-    const firstSlot = Math.ceil(start / 30) * 30;
+    const firstSlot = Math.ceil(start / slotIntervalMinutes) * slotIntervalMinutes;
     const lastSlot = Math.min(close, lastReservation);
     const minimumSlot =
       currentTimeMinimum === null ? firstSlot : Math.max(firstSlot, currentTimeMinimum);
     const daySlots: string[] = [];
 
-    for (let slot = firstSlot; slot <= lastSlot; slot += 30) {
+    for (let slot = firstSlot; slot <= lastSlot; slot += slotIntervalMinutes) {
       if (slot < minimumSlot) continue;
 
       daySlots.push(formatMinutesAsTime(slot));

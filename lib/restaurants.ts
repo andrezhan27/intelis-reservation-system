@@ -105,14 +105,6 @@ function normalizeTimeValue(time: string | null) {
 }
 
 function normalizeDayOfWeek(row: OpeningHourRow) {
-  if (typeof row.dow_id === "number") {
-    return row.dow_id;
-  }
-
-  if (typeof row.day_of_week === "number") {
-    return row.day_of_week;
-  }
-
   if (typeof row.day_of_week === "string") {
     const dayName = row.day_of_week
       .trim()
@@ -120,7 +112,19 @@ function normalizeDayOfWeek(row: OpeningHourRow) {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-    return dayNameToIndex[dayName] ?? -1;
+    const dayIndex = dayNameToIndex[dayName];
+
+    if (dayIndex !== undefined) {
+      return dayIndex;
+    }
+  }
+
+  if (typeof row.day_of_week === "number") {
+    return row.day_of_week;
+  }
+
+  if (typeof row.dow_id === "number") {
+    return row.dow_id;
   }
 
   return -1;
