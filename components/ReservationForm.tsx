@@ -176,10 +176,6 @@ export function ReservationForm({ settings, language }: Props) {
     if (!Number.isInteger(values.party_size) || values.party_size < minPartySize) {
       nextErrors.party_size = formatMinimumGuestsMessage(t.minGuests, minPartySize);
     }
-    if (!values.privacy_policy_accepted) {
-      nextErrors.privacy_policy_accepted = t.privacyRequired;
-    }
-
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -200,7 +196,10 @@ export function ReservationForm({ settings, language }: Props) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(values)
+        body: JSON.stringify({
+          ...values,
+          privacy_policy_accepted: true
+        })
       });
 
       const body = (await response.json().catch(() => null)) as
@@ -459,37 +458,22 @@ export function ReservationForm({ settings, language }: Props) {
           <span>{t.marketingConsent}</span>
         </label>
 
-        <label className="checkbox-row" htmlFor="privacy_policy_accepted">
-          <input
-            id="privacy_policy_accepted"
-            name="privacy_policy_accepted"
-            type="checkbox"
-            checked={values.privacy_policy_accepted}
-            onChange={(event) =>
-              updateValue("privacy_policy_accepted", event.target.checked)
-            }
-            aria-invalid={Boolean(errors.privacy_policy_accepted)}
-          />
-          <span>
-            {t.privacyPrefix}{" "}
-            <a href={settings.privacy_policy_url} target="_blank" rel="noreferrer">
-              {t.privacyPolicy}
-            </a>
-            {settings.terms_url ? (
-              <>
-                {" "}
-                /{" "}
-                <a href={settings.terms_url} target="_blank" rel="noreferrer">
-                  {t.terms}
-                </a>
-              </>
-            ) : null}
-            .
-            {errors.privacy_policy_accepted ? (
-              <span className="field-error"> {errors.privacy_policy_accepted}</span>
-            ) : null}
-          </span>
-        </label>
+        <p className="privacy-notice">
+          {t.privacyNotice}{" "}
+          <a href={settings.privacy_policy_url} target="_blank" rel="noreferrer">
+            {t.privacyPolicy}
+          </a>
+          {settings.terms_url ? (
+            <>
+              {" "}
+              {t.and}{" "}
+              <a href={settings.terms_url} target="_blank" rel="noreferrer">
+                {t.terms}
+              </a>
+            </>
+          ) : null}
+          .
+        </p>
       </div>
 
       <button className="submit-button" type="submit" disabled={submitState === "submitting"}>

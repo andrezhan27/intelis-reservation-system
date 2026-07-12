@@ -43,7 +43,7 @@ export function validateReservationInput(input: unknown): ValidationResult {
   const partySize = asPartySize(data.party_size);
   const specialRequests = asString(data.special_requests);
   const marketingConsent = asBoolean(data.marketing_consent);
-  const privacyAccepted = asBoolean(data.privacy_policy_accepted);
+  const privacyAccepted = true;
   const privacyPolicyVersion = asString(data.privacy_policy_version);
   const website = asString(data.website);
 
@@ -65,10 +65,6 @@ export function validateReservationInput(input: unknown): ValidationResult {
   if (!Number.isInteger(partySize) || partySize < 1) {
     errors.party_size = "Party size must be at least 1.";
   }
-  if (!privacyAccepted) {
-    errors.privacy_policy_accepted = "Privacy Policy acceptance is required.";
-  }
-
   if (Object.keys(errors).length > 0) {
     return { ok: false, errors };
   }

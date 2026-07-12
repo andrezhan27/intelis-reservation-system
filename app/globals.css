@@ -469,6 +469,19 @@ a {
   accent-color: var(--primary-color, #8b2f22);
 }
 
+.privacy-notice {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-color, #251f1a) 72%, transparent);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.privacy-notice a {
+  color: var(--primary-color, #8b2f22);
+  font-weight: 800;
+}
+
 .submit-button {
   display: inline-flex;
   align-items: center;

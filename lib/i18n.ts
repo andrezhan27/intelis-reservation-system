@@ -26,8 +26,10 @@ export const copy = {
     specialRequestsPlaceholder: "Allergies, occasion, seating preference...",
     marketingConsent:
       "I agree to receive promotional offers and updates from the restaurant (email, SMS, WhatsApp).",
-    privacyPrefix: "I have read and accept the",
+    privacyNotice:
+      "By clicking 'Send reservation request', I accept and acknowledge the",
     privacyPolicy: "Privacy Policy",
+    and: "and",
     terms: "Terms",
     submit: "Send reservation request",
     submitting: "Sending request...",
@@ -70,8 +72,10 @@ export const copy = {
     specialRequestsPlaceholder: "Alergias, ocasião, preferência de mesa...",
     marketingConsent:
       "Aceito receber ofertas e novidades do restaurante (email, SMS, WhatsApp).",
-    privacyPrefix: "Li e aceito a",
+    privacyNotice:
+      "Ao clicar em 'Enviar pedido de reserva', aceito e reconheço a",
     privacyPolicy: "Política de Privacidade",
+    and: "e",
     terms: "Termos",
     submit: "Enviar pedido de reserva",
     submitting: "A enviar pedido...",
@@ -113,8 +117,9 @@ export const copy = {
     specialRequests: "特殊要求",
     specialRequestsPlaceholder: "过敏、纪念日、座位偏好...",
     marketingConsent: "我同意接收餐厅优惠和更新（邮箱、短信、WhatsApp）。",
-    privacyPrefix: "我已阅读并接受",
+    privacyNotice: "点击发送预订请求，即表示我接受并确认",
     privacyPolicy: "隐私政策",
+    and: "和",
     terms: "条款",
     submit: "发送预订请求",
     submitting: "正在发送...",
