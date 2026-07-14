@@ -164,6 +164,7 @@ a {
 }
 
 .field input,
+.field select,
 .field textarea {
   width: 100%;
   min-height: 50px;
@@ -190,10 +191,165 @@ a {
 }
 
 .field input:focus,
+.field select:focus,
 .field textarea:focus {
   background: #fff;
   border-color: var(--primary-color, #8b2f22);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color, #8b2f22) 16%, transparent);
+}
+
+.phone-input-group {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(116px, 0.38fr) minmax(0, 1fr);
+  min-height: 50px;
+  border: 1px solid color-mix(in srgb, var(--text-color, #251f1a) 15%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #fff 95%, var(--background-color, #fffaf3));
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.phone-input-group:focus-within {
+  background: #fff;
+  border-color: var(--primary-color, #8b2f22);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color, #8b2f22) 16%, transparent);
+}
+
+.phone-input-group > input,
+.phone-input-group > input:focus {
+  min-height: 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.country-code-combobox {
+  position: relative;
+  min-width: 0;
+  z-index: 6;
+}
+
+.country-code-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-right: 1px solid color-mix(in srgb, var(--text-color, #251f1a) 12%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-color, #251f1a);
+  cursor: pointer;
+  font-weight: 800;
+  gap: 7px;
+  padding-inline: 12px 8px;
+  text-align: left;
+}
+
+.country-code-trigger span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-code-trigger:hover,
+.country-code-trigger[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--primary-color, #8b2f22) 7%, transparent);
+}
+
+.country-code-chevron {
+  color: color-mix(in srgb, var(--text-color, #251f1a) 52%, transparent);
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.country-code-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: grid;
+  gap: 8px;
+  width: min(342px, 84vw);
+  border: 1px solid color-mix(in srgb, var(--text-color, #251f1a) 14%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #fff 97%, var(--background-color, #fffaf3));
+  box-shadow: 0 18px 46px rgb(0 0 0 / 14%);
+  padding: 8px;
+  z-index: 20;
+}
+
+.country-code-menu .country-code-search,
+.country-code-menu .country-code-search:focus {
+  min-height: 42px;
+  border: 1px solid color-mix(in srgb, var(--text-color, #251f1a) 12%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #fff 94%, var(--background-color, #fffaf3));
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 11px;
+}
+
+.country-code-menu .country-code-search:focus {
+  border-color: var(--primary-color, #8b2f22);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #8b2f22) 14%, transparent);
+}
+
+.country-code-options {
+  display: grid;
+  gap: 3px;
+  max-height: 238px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.country-code-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-color, #251f1a);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.country-code-option:hover,
+.country-code-option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--primary-color, #8b2f22) 10%, #fff);
+  color: var(--primary-color, #8b2f22);
+}
+
+.country-code-option-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.country-code-option-main span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-code-empty {
+  color: color-mix(in srgb, var(--text-color, #251f1a) 62%, transparent);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 10px;
 }
 
 .guest-stepper {

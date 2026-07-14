@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { countryDialCodes, defaultDialCountryId } from "@/lib/countryDialCodes";
 import { copy } from "@/lib/i18n";
 import {
   addDays,
@@ -72,6 +73,27 @@ function formatMinimumGuestsMessage(template: string, count: number) {
   return template.replace("{count}", String(count));
 }
 
+function normalizeCountrySearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function formatPhoneForSubmission(dialCode: string, phone: string) {
+  const trimmedPhone = phone.trim();
+
+  if (trimmedPhone.startsWith("+")) {
+    return trimmedPhone.replace(/[^\d+]/g, "");
+  }
+
+  if (trimmedPhone.startsWith("00")) {
+    return `+${trimmedPhone.slice(2).replace(/\D/g, "")}`;
+  }
+
+  return `${dialCode}${trimmedPhone.replace(/\D/g, "")}`;
+}
+
 export function ReservationForm({ settings, language }: Props) {
   const t = copy[language];
   const minPartySize = Math.max(1, settings.min_party_size || 1);
@@ -82,6 +104,13 @@ export function ReservationForm({ settings, language }: Props) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [dateWindowIndex, setDateWindowIndex] = useState(0);
+  const [selectedDialCountryId, setSelectedDialCountryId] = useState(defaultDialCountryId);
+  const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+  const countrySearchRef = useRef<HTMLInputElement>(null);
+  const selectedDialCountry =
+    countryDialCodes.find((country) => country.id === selectedDialCountryId) || countryDialCodes[0];
   const [values, setValues] = useState<ReservationFormValues>({
     restaurant_id: settings.restaurant_id,
     restaurant_slug: settings.slug,
@@ -142,6 +171,21 @@ export function ReservationForm({ settings, language }: Props) {
     () => getAvailableTimeOptions(values.date, settings, now),
     [settings, values.date, now]
   );
+  const filteredDialCountries = useMemo(() => {
+    const searchTerm = normalizeCountrySearch(countrySearch.trim());
+
+    if (!searchTerm) {
+      return countryDialCodes;
+    }
+
+    return countryDialCodes.filter((country) => {
+      const searchable = normalizeCountrySearch(
+        `${country.country} ${country.code} ${country.id}`
+      );
+
+      return searchable.includes(searchTerm);
+    });
+  }, [countrySearch]);
 
   useEffect(() => {
     if (values.date && isPastDateValue(values.date, today)) {
@@ -153,6 +197,36 @@ export function ReservationForm({ settings, language }: Props) {
       setValues((current) => ({ ...current, time: "" }));
     }
   }, [availableTimeOptions, today, values.date, values.time]);
+
+  useEffect(() => {
+    if (!isCountryMenuOpen) {
+      return;
+    }
+
+    countrySearchRef.current?.focus();
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!countryDropdownRef.current?.contains(event.target as Node)) {
+        setIsCountryMenuOpen(false);
+        setCountrySearch("");
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsCountryMenuOpen(false);
+        setCountrySearch("");
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCountryMenuOpen]);
 
   function updateValue<K extends keyof ReservationFormValues>(
     key: K,
@@ -180,6 +254,12 @@ export function ReservationForm({ settings, language }: Props) {
     return Object.keys(nextErrors).length === 0;
   }
 
+  function selectDialCountry(countryId: string) {
+    setSelectedDialCountryId(countryId);
+    setIsCountryMenuOpen(false);
+    setCountrySearch("");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatusMessage(null);
@@ -198,6 +278,7 @@ export function ReservationForm({ settings, language }: Props) {
         },
         body: JSON.stringify({
           ...values,
+          phone: formatPhoneForSubmission(selectedDialCountry.code, values.phone),
           privacy_policy_accepted: true
         })
       });
@@ -262,17 +343,77 @@ export function ReservationForm({ settings, language }: Props) {
 
         <div className="field">
           <label htmlFor="phone">{t.phone}</label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            placeholder={t.phonePlaceholder}
-            value={values.phone}
-            onChange={(event) => updateValue("phone", event.target.value)}
-            aria-invalid={Boolean(errors.phone)}
-          />
+          <div className="phone-input-group">
+            <div className="country-code-combobox" ref={countryDropdownRef}>
+              <button
+                type="button"
+                className="country-code-trigger"
+                aria-controls="country-code-options"
+                aria-expanded={isCountryMenuOpen}
+                aria-haspopup="listbox"
+                aria-label={`${t.countryCode}: ${selectedDialCountry.country} ${selectedDialCountry.code}`}
+                onClick={() => setIsCountryMenuOpen((isOpen) => !isOpen)}
+              >
+                <span>
+                  {selectedDialCountry.flag} {selectedDialCountry.code}
+                </span>
+                <span className="country-code-chevron" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+              {isCountryMenuOpen ? (
+                <div className="country-code-menu">
+                  <input
+                    ref={countrySearchRef}
+                    className="country-code-search"
+                    type="search"
+                    autoComplete="off"
+                    placeholder={t.countryCodeSearch}
+                    value={countrySearch}
+                    onChange={(event) => setCountrySearch(event.target.value)}
+                  />
+                  <div
+                    id="country-code-options"
+                    className="country-code-options"
+                    role="listbox"
+                    aria-label={t.countryCode}
+                  >
+                    {filteredDialCountries.length > 0 ? (
+                      filteredDialCountries.map((country) => (
+                        <button
+                          type="button"
+                          className="country-code-option"
+                          key={country.id}
+                          role="option"
+                          aria-selected={selectedDialCountryId === country.id}
+                          onClick={() => selectDialCountry(country.id)}
+                        >
+                          <span className="country-code-option-main">
+                            <span>{country.flag}</span>
+                            <span>{country.country}</span>
+                          </span>
+                          <span>{country.code}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <span className="country-code-empty">{t.noCountryCodes}</span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel-national"
+              inputMode="tel"
+              placeholder={t.phonePlaceholder}
+              value={values.phone}
+              onChange={(event) => updateValue("phone", event.target.value)}
+              aria-invalid={Boolean(errors.phone)}
+            />
+          </div>
           {errors.phone ? <span className="field-error">{errors.phone}</span> : null}
         </div>
 
