@@ -79,6 +79,18 @@ const publicOpeningHourColumns = [
   "is_closed"
 ].join(",");
 const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
+const restaurantTimeZone = "Europe/Lisbon";
+const restaurantDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: restaurantTimeZone,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+  hourCycle: "h23"
+});
 
 const dayNameToIndex: Record<string, number> = {
   sunday: 0,
@@ -141,22 +153,32 @@ function addDays(date: Date, days: number) {
 function parseReservationBlockTimestamp(
   value: string
 ): ReservationBlockTimestamp | null {
-  const match = value.match(
-    /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?/
-  );
+  const date = new Date(value);
 
-  if (!match) {
+  if (Number.isNaN(date.getTime())) {
     return null;
   }
 
-  const [, year, month, day, hours, minutes, seconds] = match;
-  const parsedHours = Number(hours);
-  const parsedMinutes = Number(minutes);
-  const parsedSeconds = Number(seconds || "0");
+  const parts = Object.fromEntries(
+    restaurantDateTimeFormatter
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+  const year = parts.year;
+  const month = parts.month;
+  const day = parts.day;
+  const parsedHours = Number(parts.hour);
+  const parsedMinutes = Number(parts.minute);
+  const parsedSeconds = Number(parts.second);
 
   if (
+    !year ||
+    !month ||
+    !day ||
     !Number.isFinite(parsedHours) ||
     !Number.isFinite(parsedMinutes) ||
+    !Number.isFinite(parsedSeconds) ||
     parsedHours > 23 ||
     parsedMinutes > 59 ||
     parsedSeconds > 59
@@ -164,12 +186,12 @@ function parseReservationBlockTimestamp(
     return null;
   }
 
-  const date = `${year}-${month}-${day}`;
+  const dateValue = `${year}-${month}-${day}`;
 
   return {
-    date,
+    date: dateValue,
     minutes: parsedHours * 60 + parsedMinutes + (parsedSeconds > 0 ? 1 : 0),
-    dateValue: getDateValue(date)
+    dateValue: getDateValue(dateValue)
   };
 }
 
