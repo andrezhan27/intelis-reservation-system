@@ -2,6 +2,11 @@ import type { RestaurantSettings } from "@/lib/types";
 
 const slotIntervalMinutes = 30;
 
+export type TimeSlotOption = {
+  value: string;
+  isBlocked: boolean;
+};
+
 export function formatDateValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -49,7 +54,7 @@ export function isPastDateValue(dateValue: string, todayValue: string) {
   return dateValue < todayValue;
 }
 
-export function getAvailableTimeOptions(
+function getOpenTimeOptions(
   dateValue: string,
   settings: RestaurantSettings,
   now: Date
@@ -99,6 +104,56 @@ export function getAvailableTimeOptions(
   });
 
   return Array.from(new Set(slots)).sort();
+}
+
+function rangesOverlap(
+  leftStart: number,
+  leftEnd: number,
+  rightStart: number,
+  rightEnd: number
+) {
+  return leftStart < rightEnd && rightStart < leftEnd;
+}
+
+function isReservationTimeBlocked(
+  dateValue: string,
+  timeValue: string,
+  settings: RestaurantSettings
+) {
+  const slotStart = parseTimeToMinutes(timeValue);
+
+  if (slotStart === null) {
+    return true;
+  }
+
+  const slotEnd = slotStart + slotIntervalMinutes;
+
+  return settings.reservation_blocks.some(
+    (block) =>
+      block.date === dateValue &&
+      rangesOverlap(slotStart, slotEnd, block.start_minutes, block.end_minutes)
+  );
+}
+
+export function getTimeSlotOptions(
+  dateValue: string,
+  settings: RestaurantSettings,
+  now: Date
+): TimeSlotOption[] {
+  return getOpenTimeOptions(dateValue, settings, now).map((value) => ({
+    value,
+    isBlocked: isReservationTimeBlocked(dateValue, value, settings)
+  }));
+}
+
+export function getAvailableTimeOptions(
+  dateValue: string,
+  settings: RestaurantSettings,
+  now: Date
+) {
+  return getTimeSlotOptions(dateValue, settings, now)
+    .filter((option) => !option.isBlocked)
+    .map((option) => option.value);
 }
 
 export function isReservationTimeAvailable(

@@ -13,9 +13,16 @@ export type RestaurantSettings = {
   booking_widget_enabled: boolean;
   min_party_size: number;
   opening_hours: RestaurantOpeningHour[];
+  reservation_blocks: ReservationBlock[];
   privacy_policy_url: string;
   privacy_policy_version: string;
   terms_url: string | null;
+};
+
+export type ReservationBlock = {
+  date: string;
+  start_minutes: number;
+  end_minutes: number;
 };
 
 export type RestaurantOpeningHour = {

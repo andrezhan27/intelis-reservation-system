@@ -537,6 +537,20 @@ a {
   background: color-mix(in srgb, var(--primary-color, #8b2f22) 7%, #fff);
 }
 
+.time-slot-button:disabled {
+  border-color: color-mix(in srgb, var(--text-color, #251f1a) 16%, transparent);
+  background: color-mix(in srgb, var(--text-color, #251f1a) 5%, #fff);
+  box-shadow: none;
+  color: color-mix(in srgb, var(--text-color, #251f1a) 34%, transparent);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.time-slot-button:disabled:hover {
+  border-color: color-mix(in srgb, var(--text-color, #251f1a) 16%, transparent);
+  background: color-mix(in srgb, var(--text-color, #251f1a) 5%, #fff);
+}
+
 .date-option[aria-pressed="true"],
 .time-slot-button[aria-pressed="true"] {
   border-color: var(--primary-color, #8b2f22);

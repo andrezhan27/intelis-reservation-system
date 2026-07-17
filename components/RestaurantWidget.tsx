@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ReservationForm } from "@/components/ReservationForm";
 import { copy } from "@/lib/i18n";
+import { getSupabaseAnonClient } from "@/lib/supabase";
 import type { RestaurantSettings, WidgetLanguage } from "@/lib/types";
 
 type Props = {
@@ -16,8 +18,105 @@ const languageOptions: Array<{ label: string; value: WidgetLanguage }> = [
 ];
 
 export function RestaurantWidget({ settings }: Props) {
+  const router = useRouter();
   const [language, setLanguage] = useState<WidgetLanguage>("pt");
+  const refreshTimeoutRef = useRef<number | null>(null);
   const t = copy[language];
+
+  useEffect(() => {
+    const supabase = getSupabaseAnonClient();
+
+    function scheduleRefresh() {
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        router.refresh();
+        refreshTimeoutRef.current = null;
+      }, 350);
+    }
+
+    const pollIntervalId = window.setInterval(scheduleRefresh, 30000);
+
+    if (!supabase) {
+      return () => {
+        window.clearInterval(pollIntervalId);
+
+        if (refreshTimeoutRef.current !== null) {
+          window.clearTimeout(refreshTimeoutRef.current);
+        }
+      };
+    }
+
+    const channel = supabase
+      .channel(`restaurant-settings:${settings.slug}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "restaurants",
+          filter: `id=eq.${settings.restaurant_id}`
+        },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "opening_hours",
+          filter: `restaurant_id=eq.${settings.restaurant_id}`
+        },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "restaurant_opening_hours",
+          filter: `restaurant_id=eq.${settings.restaurant_id}`
+        },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reservation_blocks",
+          filter: `restaurant_id=eq.${settings.slug}`
+        },
+        scheduleRefresh
+      );
+
+    if (settings.restaurant_id !== settings.slug) {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reservation_blocks",
+          filter: `restaurant_id=eq.${settings.restaurant_id}`
+        },
+        scheduleRefresh
+      );
+    }
+
+    channel.subscribe();
+
+    return () => {
+      window.clearInterval(pollIntervalId);
+
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+
+      supabase.removeChannel(channel);
+    };
+  }, [router, settings.restaurant_id, settings.slug]);
 
   return (
     <section className="widget-container" aria-labelledby="reservation-title">

@@ -6,7 +6,7 @@ import { copy } from "@/lib/i18n";
 import {
   addDays,
   formatDateValue,
-  getAvailableTimeOptions,
+  getTimeSlotOptions,
   isPastDateValue,
   parseDateValue
 } from "@/lib/reservationAvailability";
@@ -137,9 +137,13 @@ export function ReservationForm({ settings, language }: Props) {
     const todayDate = parseDateValue(today);
 
     return [
-      { label: t.today, value: formatDateValue(todayDate) },
-      { label: t.tomorrow, value: formatDateValue(addDays(todayDate, 1)) },
-      { label: t.nextWeekend, value: formatDateValue(getNextWeekendDate(todayDate)) }
+      { id: "today", label: t.today, value: formatDateValue(todayDate) },
+      { id: "tomorrow", label: t.tomorrow, value: formatDateValue(addDays(todayDate, 1)) },
+      {
+        id: "next-weekend",
+        label: t.nextWeekend,
+        value: formatDateValue(getNextWeekendDate(todayDate))
+      }
     ];
   }, [t.nextWeekend, t.today, t.tomorrow, today]);
   const dateWindowStart = useMemo(
@@ -167,9 +171,16 @@ export function ReservationForm({ settings, language }: Props) {
       };
     });
   }, [dateWindowStart, language]);
-  const availableTimeOptions = useMemo(
-    () => getAvailableTimeOptions(values.date, settings, now),
+  const timeSlotOptions = useMemo(
+    () => getTimeSlotOptions(values.date, settings, now),
     [settings, values.date, now]
+  );
+  const availableTimeOptions = useMemo(
+    () =>
+      timeSlotOptions
+        .filter((option) => !option.isBlocked)
+        .map((option) => option.value),
+    [timeSlotOptions]
   );
   const filteredDialCountries = useMemo(() => {
     const searchTerm = normalizeCountrySearch(countrySearch.trim());
@@ -483,7 +494,7 @@ export function ReservationForm({ settings, language }: Props) {
                 {dateQuickOptions.map((option) => (
                   <button
                     type="button"
-                    key={option.value}
+                    key={option.id}
                     aria-pressed={values.date === option.value}
                     onClick={() => updateValue("date", option.value)}
                   >
@@ -541,17 +552,19 @@ export function ReservationForm({ settings, language }: Props) {
               </div>
               <input id="time" name="time" type="hidden" value={values.time} />
 
-              {availableTimeOptions.length > 0 ? (
+              {timeSlotOptions.length > 0 ? (
                 <div className="time-slot-grid" aria-label={t.time}>
-                  {availableTimeOptions.map((option) => (
+                  {timeSlotOptions.map((option) => (
                     <button
                       type="button"
                       className="time-slot-button"
-                      key={option}
-                      aria-pressed={values.time === option}
-                      onClick={() => updateValue("time", option)}
+                      key={option.value}
+                      aria-pressed={values.time === option.value}
+                      disabled={option.isBlocked}
+                      title={option.isBlocked ? t.error : undefined}
+                      onClick={() => updateValue("time", option.value)}
                     >
-                      {option}
+                      {option.value}
                     </button>
                   ))}
                 </div>

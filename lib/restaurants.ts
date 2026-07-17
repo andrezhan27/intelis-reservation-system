@@ -1,18 +1,12 @@
-import { unstable_cache } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 import { normalizeLanguage } from "@/lib/i18n";
 import { getFontFamilyStack } from "@/lib/fonts";
 import { getSupabaseAnonClient } from "@/lib/supabase";
-import type { RestaurantOpeningHour, RestaurantSettings } from "@/lib/types";
-
-export const restaurantSettingsCacheSeconds = 5 * 60;
-const settingsCacheTtlMs = restaurantSettingsCacheSeconds * 1000;
-const settingsCache = new Map<
-  string,
-  {
-    expiresAt: number;
-    value: RestaurantSettings | null;
-  }
->();
+import type {
+  ReservationBlock,
+  RestaurantOpeningHour,
+  RestaurantSettings
+} from "@/lib/types";
 
 type RestaurantRow = {
   id: string;
@@ -37,6 +31,17 @@ type OpeningHourRow = {
   closes_at: string | null;
   last_reservation_time: string | null;
   is_closed: boolean | null;
+};
+
+type ReservationBlockRow = {
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
+type ReservationBlockTimestamp = {
+  date: string;
+  minutes: number;
+  dateValue: number;
 };
 
 const basePublicColumns = [
@@ -73,6 +78,7 @@ const publicOpeningHourColumns = [
   "last_reservation_time",
   "is_closed"
 ].join(",");
+const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
 
 const dayNameToIndex: Record<string, number> = {
   sunday: 0,
@@ -102,6 +108,69 @@ const dayNameToIndex: Record<string, number> = {
 
 function normalizeTimeValue(time: string | null) {
   return time?.slice(0, 5) || "";
+}
+
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateValue(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+function getDateValue(date: string) {
+  return parseDateValue(date).getTime();
+}
+
+function getStartOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function parseReservationBlockTimestamp(
+  value: string
+): ReservationBlockTimestamp | null {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?/
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hours, minutes, seconds] = match;
+  const parsedHours = Number(hours);
+  const parsedMinutes = Number(minutes);
+  const parsedSeconds = Number(seconds || "0");
+
+  if (
+    !Number.isFinite(parsedHours) ||
+    !Number.isFinite(parsedMinutes) ||
+    parsedHours > 23 ||
+    parsedMinutes > 59 ||
+    parsedSeconds > 59
+  ) {
+    return null;
+  }
+
+  const date = `${year}-${month}-${day}`;
+
+  return {
+    date,
+    minutes: parsedHours * 60 + parsedMinutes + (parsedSeconds > 0 ? 1 : 0),
+    dateValue: getDateValue(date)
+  };
 }
 
 function normalizeDayOfWeek(row: OpeningHourRow) {
@@ -146,6 +215,52 @@ function normalizeOpeningHours(rows: OpeningHourRow[] | null): RestaurantOpening
     .filter((row) => row.day_of_week >= 0 && row.day_of_week <= 6);
 }
 
+function normalizeReservationBlocks(rows: ReservationBlockRow[] | null): ReservationBlock[] {
+  if (!rows) return [];
+
+  return rows.flatMap((row) => {
+    if (!row.starts_at || !row.ends_at) return [];
+
+    const startsAt = parseReservationBlockTimestamp(row.starts_at);
+    const endsAt = parseReservationBlockTimestamp(row.ends_at);
+
+    if (
+      !startsAt ||
+      !endsAt ||
+      endsAt.dateValue < startsAt.dateValue ||
+      (endsAt.dateValue === startsAt.dateValue && endsAt.minutes <= startsAt.minutes)
+    ) {
+      return [];
+    }
+
+    const blocks: ReservationBlock[] = [];
+
+    for (
+      let dayStart = getStartOfDay(parseDateValue(startsAt.date));
+      dayStart.getTime() <= endsAt.dateValue;
+      dayStart = addDays(dayStart, 1)
+    ) {
+      const dayValue = dayStart.getTime();
+      const startMinutes = dayValue === startsAt.dateValue
+        ? startsAt.minutes
+        : 0;
+      const endMinutes = dayValue === endsAt.dateValue
+        ? endsAt.minutes
+        : 24 * 60;
+
+      if (endMinutes > startMinutes) {
+        blocks.push({
+          date: formatDateValue(dayStart),
+          start_minutes: startMinutes,
+          end_minutes: endMinutes
+        });
+      }
+    }
+
+    return blocks;
+  });
+}
+
 async function getOpeningHoursData(
   supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
   restaurantId: string
@@ -171,6 +286,30 @@ async function getOpeningHoursData(
     .returns<OpeningHourRow[]>();
 
   return restaurantOpeningHoursResult.data || openingHoursResult.data;
+}
+
+async function getReservationBlocksData(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
+  restaurantId: string,
+  restaurantSlug: string
+) {
+  const restaurantIds = Array.from(new Set([restaurantSlug, restaurantId].filter(Boolean)));
+  const reservationBlocksResult = await supabase
+    .from("reservation_blocks")
+    .select(reservationBlockColumns)
+    .in("restaurant_id", restaurantIds)
+    .eq("active", true)
+    .contains("channels", ["website_widget"])
+    .order("starts_at", { ascending: true })
+    .returns<ReservationBlockRow[]>();
+
+  if (reservationBlocksResult.error) {
+    console.error("Failed to load reservation blocks", {
+      message: reservationBlocksResult.error.message
+    });
+  }
+
+  return reservationBlocksResult.data || [];
 }
 
 async function fetchRestaurantSettings(
@@ -207,7 +346,10 @@ async function fetchRestaurantSettings(
     return null;
   }
 
-  const openingHoursData = await getOpeningHoursData(supabase, data.id);
+  const [openingHoursData, reservationBlocksData] = await Promise.all([
+    getOpeningHoursData(supabase, data.id),
+    getReservationBlocksData(supabase, data.id, data.slug)
+  ]);
 
   return {
     restaurant_id: data.id,
@@ -222,34 +364,17 @@ async function fetchRestaurantSettings(
     booking_widget_enabled: data.booking_widget_enabled === true,
     min_party_size: Math.max(1, data.min_party_size || 1),
     opening_hours: normalizeOpeningHours(openingHoursData),
+    reservation_blocks: normalizeReservationBlocks(reservationBlocksData),
     privacy_policy_url: data.privacy_policy_url || "#",
     privacy_policy_version: data.privacy_policy_version || "current",
     terms_url: null
   };
 }
 
-const getCachedRestaurantSettings = unstable_cache(
-  async (restaurantSlug: string) => fetchRestaurantSettings(restaurantSlug),
-  ["restaurant-settings"],
-  { revalidate: restaurantSettingsCacheSeconds }
-);
-
 export async function getRestaurantSettings(
   restaurantSlug: string
 ): Promise<RestaurantSettings | null> {
-  const cacheKey = restaurantSlug.trim().toLowerCase();
-  const cachedSettings = settingsCache.get(cacheKey);
+  noStore();
 
-  if (cachedSettings && cachedSettings.expiresAt > Date.now()) {
-    return cachedSettings.value;
-  }
-
-  const settings = await getCachedRestaurantSettings(restaurantSlug.trim());
-
-  settingsCache.set(cacheKey, {
-    expiresAt: Date.now() + settingsCacheTtlMs,
-    value: settings
-  });
-
-  return settings;
+  return fetchRestaurantSettings(restaurantSlug.trim());
 }
