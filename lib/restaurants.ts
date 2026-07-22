@@ -4,7 +4,7 @@ import { getFontFamilyStack } from "@/lib/fonts";
 import { getSupabaseAnonClient } from "@/lib/supabase";
 import type {
   ReservationBlock,
-  RestaurantOpeningHour,
+  ReservationTime,
   RestaurantSettings
 } from "@/lib/types";
 
@@ -24,7 +24,7 @@ type RestaurantRow = {
   privacy_policy_version: string | null;
 };
 
-type OpeningHourRow = {
+type ReservationTimeRow = {
   day_of_week?: number | string | null;
   dow_id?: number | null;
   opens_at: string | null;
@@ -62,15 +62,7 @@ const basePublicColumns = [
 const publicColumns = [...basePublicColumns, "min_party_size"].join(",");
 const legacyPublicColumns = basePublicColumns.join(",");
 
-const openingHourColumns = [
-  "day_of_week",
-  "opens_at",
-  "closes_at",
-  "last_reservation_time",
-  "is_closed"
-].join(",");
-const legacyOpeningHourColumns = openingHourColumns;
-const publicOpeningHourColumns = [
+const publicReservationTimeColumns = [
   "dow_id",
   "day_of_week",
   "opens_at",
@@ -195,7 +187,7 @@ function parseReservationBlockTimestamp(
   };
 }
 
-function normalizeDayOfWeek(row: OpeningHourRow) {
+function normalizeDayOfWeek(row: ReservationTimeRow) {
   if (typeof row.day_of_week === "string") {
     const dayName = row.day_of_week
       .trim()
@@ -221,7 +213,7 @@ function normalizeDayOfWeek(row: OpeningHourRow) {
   return -1;
 }
 
-function normalizeOpeningHours(rows: OpeningHourRow[] | null): RestaurantOpeningHour[] {
+function normalizeReservationTimes(rows: ReservationTimeRow[] | null): ReservationTime[] {
   if (!rows) return [];
 
   return rows
@@ -283,31 +275,25 @@ function normalizeReservationBlocks(rows: ReservationBlockRow[] | null): Reserva
   });
 }
 
-async function getOpeningHoursData(
+async function getReservationTimesData(
   supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
   restaurantId: string
 ) {
-  const openingHoursResult = await supabase
+  const reservationTimesResult = await supabase
     .from("reservation_times")
-    .select(publicOpeningHourColumns)
+    .select(publicReservationTimeColumns)
     .eq("restaurant_id", restaurantId)
     .order("dow_id", { ascending: true })
     .order("opens_at", { ascending: true })
-    .returns<OpeningHourRow[]>();
+    .returns<ReservationTimeRow[]>();
 
-  if (openingHoursResult.data?.length) {
-    return openingHoursResult.data;
+  if (reservationTimesResult.error) {
+    console.error("Failed to load reservation times", {
+      message: reservationTimesResult.error.message
+    });
   }
 
-  const restaurantOpeningHoursResult = await supabase
-    .from("restaurant_opening_hours")
-    .select(legacyOpeningHourColumns)
-    .eq("restaurant_id", restaurantId)
-    .order("day_of_week", { ascending: true })
-    .order("opens_at", { ascending: true })
-    .returns<OpeningHourRow[]>();
-
-  return restaurantOpeningHoursResult.data || openingHoursResult.data;
+  return reservationTimesResult.data;
 }
 
 async function getReservationBlocksData(
@@ -368,8 +354,8 @@ async function fetchRestaurantSettings(
     return null;
   }
 
-  const [openingHoursData, reservationBlocksData] = await Promise.all([
-    getOpeningHoursData(supabase, data.id),
+  const [reservationTimesData, reservationBlocksData] = await Promise.all([
+    getReservationTimesData(supabase, data.id),
     getReservationBlocksData(supabase, data.id, data.slug)
   ]);
 
@@ -385,7 +371,7 @@ async function fetchRestaurantSettings(
     language: normalizeLanguage(data.language),
     booking_widget_enabled: data.booking_widget_enabled === true,
     min_party_size: Math.max(1, data.min_party_size || 1),
-    opening_hours: normalizeOpeningHours(openingHoursData),
+    reservation_times: normalizeReservationTimes(reservationTimesData),
     reservation_blocks: normalizeReservationBlocks(reservationBlocksData),
     privacy_policy_url: data.privacy_policy_url || "#",
     privacy_policy_version: data.privacy_policy_version || "current",

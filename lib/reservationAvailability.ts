@@ -67,21 +67,21 @@ function getOpenTimeOptions(
     dateValue === todayValue ? getMinutesSinceMidnight(now) : null;
 
   const selectedDay = parseDateValue(dateValue).getDay();
-  const matchingHours = settings.opening_hours.filter(
-    (openingHour) => openingHour.day_of_week === selectedDay
+  const matchingTimes = settings.reservation_times.filter(
+    (reservationTime) => reservationTime.day_of_week === selectedDay
   );
 
-  if (matchingHours.length === 0 || matchingHours.every((openingHour) => openingHour.is_closed)) {
+  if (matchingTimes.length === 0 || matchingTimes.every((reservationTime) => reservationTime.is_closed)) {
     return [];
   }
 
-  const slots = matchingHours.flatMap((openingHour) => {
-    if (openingHour.is_closed) return [];
+  const slots = matchingTimes.flatMap((reservationTime) => {
+    if (reservationTime.is_closed) return [];
 
-    const start = parseTimeToMinutes(openingHour.opens_at);
-    const close = parseTimeToMinutes(openingHour.closes_at);
+    const start = parseTimeToMinutes(reservationTime.opens_at);
+    const close = parseTimeToMinutes(reservationTime.closes_at);
     const lastReservation = parseTimeToMinutes(
-      openingHour.last_reservation_time || openingHour.closes_at
+      reservationTime.last_reservation_time || reservationTime.closes_at
     );
 
     if (start === null || close === null || lastReservation === null) {

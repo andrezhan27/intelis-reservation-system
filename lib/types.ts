@@ -12,7 +12,7 @@ export type RestaurantSettings = {
   language: WidgetLanguage;
   booking_widget_enabled: boolean;
   min_party_size: number;
-  opening_hours: RestaurantOpeningHour[];
+  reservation_times: ReservationTime[];
   reservation_blocks: ReservationBlock[];
   privacy_policy_url: string;
   privacy_policy_version: string;
@@ -25,7 +25,7 @@ export type ReservationBlock = {
   end_minutes: number;
 };
 
-export type RestaurantOpeningHour = {
+export type ReservationTime = {
   day_of_week: number;
   opens_at: string;
   closes_at: string;

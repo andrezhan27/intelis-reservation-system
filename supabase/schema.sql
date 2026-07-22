@@ -35,6 +35,7 @@ CREATE TABLE public.bookings (
   privacy_policy_accepted_at timestamp with time zone,
   privacy_policy_version text,
   confirmation_token text,
+  rejection_reason text,
   CONSTRAINT bookings_pkey PRIMARY KEY (reservation_id)
 );
 CREATE TABLE public.restaurants (
@@ -85,12 +86,13 @@ CREATE TABLE public.reservation_times (
   day_of_week text NOT NULL,
   opens_at time without time zone NOT NULL,
   closes_at time without time zone NOT NULL,
-  last_reservation_time time without time zone,
+  last_reservation_time time without time zone NOT NULL,
   is_closed boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text, 'All day'::text])),
   CONSTRAINT reservation_times_pkey PRIMARY KEY (id),
-  CONSTRAINT reservation_times_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
+  CONSTRAINT opening_hours_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
 CREATE TABLE public.restaurant_memberships (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -133,6 +135,8 @@ CREATE TABLE public.restaurant_areas (
   sort_order smallint NOT NULL DEFAULT 0,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  canvas_ratio numeric NOT NULL DEFAULT 1.500 CHECK (canvas_ratio >= 0.750 AND canvas_ratio <= 2.500),
+  layout_revision bigint NOT NULL DEFAULT 1 CHECK (layout_revision > 0),
   CONSTRAINT restaurant_areas_pkey PRIMARY KEY (id),
   CONSTRAINT restaurant_areas_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
@@ -144,10 +148,10 @@ CREATE TABLE public.dining_tables (
   min_capacity smallint NOT NULL DEFAULT 1 CHECK (min_capacity > 0),
   max_capacity smallint NOT NULL,
   shape text NOT NULL DEFAULT 'square'::text CHECK (shape = ANY (ARRAY['round'::text, 'square'::text, 'rectangle'::text])),
-  position_x numeric NOT NULL DEFAULT 0,
-  position_y numeric NOT NULL DEFAULT 0,
+  position_x numeric NOT NULL DEFAULT 0 CHECK (position_x >= 0::numeric AND position_x <= 100::numeric),
+  position_y numeric NOT NULL DEFAULT 0 CHECK (position_y >= 0::numeric AND position_y <= 100::numeric),
   active boolean NOT NULL DEFAULT true,
-  operational_state text NOT NULL DEFAULT 'available'::text CHECK (operational_state = ANY (ARRAY['available'::text, 'reserved'::text, 'occupied'::text, 'cleaning'::text, 'blocked'::text, 'unavailable'::text])),
+  operational_state text NOT NULL DEFAULT 'available'::text CHECK (operational_state = ANY (ARRAY['available'::text, 'cleaning'::text, 'blocked'::text, 'unavailable'::text])),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT dining_tables_pkey PRIMARY KEY (id),
@@ -165,6 +169,7 @@ CREATE TABLE public.reservation_table_assignments (
   assigned_by uuid,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  duration_minutes smallint NOT NULL DEFAULT 120 CHECK (duration_minutes >= 30 AND duration_minutes <= 480),
   CONSTRAINT reservation_table_assignments_pkey PRIMARY KEY (id),
   CONSTRAINT reservation_table_assignments_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT reservation_table_assignments_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.bookings(reservation_id),

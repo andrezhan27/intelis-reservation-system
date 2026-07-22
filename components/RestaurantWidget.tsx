@@ -76,16 +76,6 @@ export function RestaurantWidget({ settings }: Props) {
         {
           event: "*",
           schema: "public",
-          table: "restaurant_opening_hours",
-          filter: `restaurant_id=eq.${settings.restaurant_id}`
-        },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
           table: "reservation_blocks",
           filter: `restaurant_id=eq.${settings.slug}`
         },
