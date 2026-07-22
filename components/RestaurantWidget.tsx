@@ -66,7 +66,7 @@ export function RestaurantWidget({ settings }: Props) {
         {
           event: "*",
           schema: "public",
-          table: "opening_hours",
+          table: "reservation_times",
           filter: `restaurant_id=eq.${settings.restaurant_id}`
         },
         scheduleRefresh

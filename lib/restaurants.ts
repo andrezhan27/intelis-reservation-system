@@ -288,7 +288,7 @@ async function getOpeningHoursData(
   restaurantId: string
 ) {
   const openingHoursResult = await supabase
-    .from("opening_hours")
+    .from("reservation_times")
     .select(publicOpeningHourColumns)
     .eq("restaurant_id", restaurantId)
     .order("dow_id", { ascending: true })

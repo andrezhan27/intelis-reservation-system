@@ -78,7 +78,7 @@ CREATE TABLE public.call_logs (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT call_logs_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.opening_hours (
+CREATE TABLE public.reservation_times (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   restaurant_id text NOT NULL,
   dow_id smallint NOT NULL CHECK (dow_id >= 0 AND dow_id <= 6),
@@ -89,8 +89,8 @@ CREATE TABLE public.opening_hours (
   is_closed boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT opening_hours_pkey PRIMARY KEY (id),
-  CONSTRAINT opening_hours_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
+  CONSTRAINT reservation_times_pkey PRIMARY KEY (id),
+  CONSTRAINT reservation_times_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
 CREATE TABLE public.restaurant_memberships (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
