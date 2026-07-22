@@ -2,11 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { countryDialCodes, defaultDialCountryId } from "@/lib/countryDialCodes";
-import { copy } from "@/lib/i18n";
+import { copy, mealPeriodCopy } from "@/lib/i18n";
 import {
   addDays,
   formatDateValue,
-  getTimeSlotOptions,
+  getTimeSlotSections,
   isPastDateValue,
   parseDateValue
 } from "@/lib/reservationAvailability";
@@ -171,16 +171,17 @@ export function ReservationForm({ settings, language }: Props) {
       };
     });
   }, [dateWindowStart, language]);
-  const timeSlotOptions = useMemo(
-    () => getTimeSlotOptions(values.date, settings, now),
+  const timeSlotSections = useMemo(
+    () => getTimeSlotSections(values.date, settings, now),
     [settings, values.date, now]
   );
   const availableTimeOptions = useMemo(
     () =>
-      timeSlotOptions
+      timeSlotSections
+        .flatMap((section) => section.options)
         .filter((option) => !option.isBlocked)
         .map((option) => option.value),
-    [timeSlotOptions]
+    [timeSlotSections]
   );
   const filteredDialCountries = useMemo(() => {
     const searchTerm = normalizeCountrySearch(countrySearch.trim());
@@ -552,20 +553,27 @@ export function ReservationForm({ settings, language }: Props) {
               </div>
               <input id="time" name="time" type="hidden" value={values.time} />
 
-              {timeSlotOptions.length > 0 ? (
-                <div className="time-slot-grid" aria-label={t.time}>
-                  {timeSlotOptions.map((option) => (
-                    <button
-                      type="button"
-                      className="time-slot-button"
-                      key={option.value}
-                      aria-pressed={values.time === option.value}
-                      disabled={option.isBlocked}
-                      title={option.isBlocked ? t.error : undefined}
-                      onClick={() => updateValue("time", option.value)}
-                    >
-                      {option.value}
-                    </button>
+              {timeSlotSections.length > 0 ? (
+                <div className="time-slot-sections" aria-label={t.time}>
+                  {timeSlotSections.map((section) => (
+                    <div className="time-slot-section" key={section.mealPeriod}>
+                      <h3>{mealPeriodCopy[language][section.mealPeriod]}</h3>
+                      <div className="time-slot-grid">
+                        {section.options.map((option) => (
+                          <button
+                            type="button"
+                            className="time-slot-button"
+                            key={`${section.mealPeriod}-${option.value}`}
+                            aria-pressed={values.time === option.value}
+                            disabled={option.isBlocked}
+                            title={option.isBlocked ? t.error : undefined}
+                            onClick={() => updateValue("time", option.value)}
+                          >
+                            {option.value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (

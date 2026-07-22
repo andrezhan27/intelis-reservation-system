@@ -1,4 +1,4 @@
-import type { WidgetLanguage } from "@/lib/types";
+import type { MealPeriod, WidgetLanguage } from "@/lib/types";
 
 export const copy = {
   en: {
@@ -145,6 +145,24 @@ export const copy = {
     successNote: "餐厅会尽快向您确认。"
   }
 } satisfies Record<WidgetLanguage, Record<string, string>>;
+
+export const mealPeriodCopy = {
+  en: {
+    Lunch: "Lunch",
+    Dinner: "Dinner",
+    "All Day": "All Day"
+  },
+  pt: {
+    Lunch: "Almoço",
+    Dinner: "Jantar",
+    "All Day": "Todo o dia"
+  },
+  zh: {
+    Lunch: "午餐",
+    Dinner: "晚餐",
+    "All Day": "全天"
+  }
+} satisfies Record<WidgetLanguage, Record<MealPeriod, string>>;
 
 export function normalizeLanguage(language: string | null | undefined): WidgetLanguage {
   const normalizedLanguage = language?.toLowerCase();

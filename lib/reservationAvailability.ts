@@ -1,10 +1,15 @@
-import type { RestaurantSettings } from "@/lib/types";
+import type { MealPeriod, RestaurantSettings } from "@/lib/types";
 
 const slotIntervalMinutes = 30;
 
 export type TimeSlotOption = {
   value: string;
   isBlocked: boolean;
+};
+
+export type TimeSlotSection = {
+  mealPeriod: MealPeriod;
+  options: TimeSlotOption[];
 };
 
 export function formatDateValue(date: Date) {
@@ -54,7 +59,7 @@ export function isPastDateValue(dateValue: string, todayValue: string) {
   return dateValue < todayValue;
 }
 
-function getOpenTimeOptions(
+function getOpenTimeSections(
   dateValue: string,
   settings: RestaurantSettings,
   now: Date
@@ -75,35 +80,35 @@ function getOpenTimeOptions(
     return [];
   }
 
-  const slots = matchingTimes.flatMap((reservationTime) => {
+  const sectionSlots = new Map<MealPeriod, Set<string>>();
+
+  matchingTimes.forEach((reservationTime) => {
     if (reservationTime.is_closed) return [];
 
     const start = parseTimeToMinutes(reservationTime.opens_at);
     const close = parseTimeToMinutes(reservationTime.closes_at);
-    const lastReservation = parseTimeToMinutes(
-      reservationTime.last_reservation_time || reservationTime.closes_at
-    );
 
-    if (start === null || close === null || lastReservation === null) {
-      return [];
+    if (start === null || close === null || close < start) {
+      return;
     }
 
     const firstSlot = Math.ceil(start / slotIntervalMinutes) * slotIntervalMinutes;
-    const lastSlot = Math.min(close, lastReservation);
     const minimumSlot =
       currentTimeMinimum === null ? firstSlot : Math.max(firstSlot, currentTimeMinimum);
-    const daySlots: string[] = [];
 
-    for (let slot = firstSlot; slot <= lastSlot; slot += slotIntervalMinutes) {
+    for (let slot = firstSlot; slot <= close; slot += slotIntervalMinutes) {
       if (slot < minimumSlot) continue;
 
-      daySlots.push(formatMinutesAsTime(slot));
+      const periodSlots = sectionSlots.get(reservationTime.meal_period) || new Set<string>();
+      periodSlots.add(formatMinutesAsTime(slot));
+      sectionSlots.set(reservationTime.meal_period, periodSlots);
     }
-
-    return daySlots;
   });
 
-  return Array.from(new Set(slots)).sort();
+  return Array.from(sectionSlots, ([mealPeriod, slots]) => ({
+    mealPeriod,
+    values: Array.from(slots).sort()
+  })).filter((section) => section.values.length > 0);
 }
 
 function rangesOverlap(
@@ -140,9 +145,20 @@ export function getTimeSlotOptions(
   settings: RestaurantSettings,
   now: Date
 ): TimeSlotOption[] {
-  return getOpenTimeOptions(dateValue, settings, now).map((value) => ({
-    value,
-    isBlocked: isReservationTimeBlocked(dateValue, value, settings)
+  return getTimeSlotSections(dateValue, settings, now).flatMap((section) => section.options);
+}
+
+export function getTimeSlotSections(
+  dateValue: string,
+  settings: RestaurantSettings,
+  now: Date
+): TimeSlotSection[] {
+  return getOpenTimeSections(dateValue, settings, now).map((section) => ({
+    mealPeriod: section.mealPeriod,
+    options: section.values.map((value) => ({
+      value,
+      isBlocked: isReservationTimeBlocked(dateValue, value, settings)
+    }))
   }));
 }
 

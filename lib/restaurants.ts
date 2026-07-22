@@ -3,6 +3,7 @@ import { normalizeLanguage } from "@/lib/i18n";
 import { getFontFamilyStack } from "@/lib/fonts";
 import { getSupabaseAnonClient } from "@/lib/supabase";
 import type {
+  MealPeriod,
   ReservationBlock,
   ReservationTime,
   RestaurantSettings
@@ -27,9 +28,9 @@ type RestaurantRow = {
 type ReservationTimeRow = {
   day_of_week?: number | string | null;
   dow_id?: number | null;
+  meal_period: string | null;
   opens_at: string | null;
   closes_at: string | null;
-  last_reservation_time: string | null;
   is_closed: boolean | null;
 };
 
@@ -65,9 +66,9 @@ const legacyPublicColumns = basePublicColumns.join(",");
 const publicReservationTimeColumns = [
   "dow_id",
   "day_of_week",
+  "meal_period",
   "opens_at",
   "closes_at",
-  "last_reservation_time",
   "is_closed"
 ].join(",");
 const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
@@ -213,17 +214,24 @@ function normalizeDayOfWeek(row: ReservationTimeRow) {
   return -1;
 }
 
+function normalizeMealPeriod(mealPeriod: string | null): MealPeriod {
+  const normalizedPeriod = mealPeriod?.trim().toLowerCase();
+
+  if (normalizedPeriod === "lunch") return "Lunch";
+  if (normalizedPeriod === "dinner") return "Dinner";
+
+  return "All Day";
+}
+
 function normalizeReservationTimes(rows: ReservationTimeRow[] | null): ReservationTime[] {
   if (!rows) return [];
 
   return rows
     .map((row) => ({
       day_of_week: normalizeDayOfWeek(row),
+      meal_period: normalizeMealPeriod(row.meal_period),
       opens_at: normalizeTimeValue(row.opens_at),
       closes_at: normalizeTimeValue(row.closes_at),
-      last_reservation_time: row.last_reservation_time
-        ? normalizeTimeValue(row.last_reservation_time)
-        : null,
       is_closed: row.is_closed === true
     }))
     .filter((row) => row.day_of_week >= 0 && row.day_of_week <= 6);

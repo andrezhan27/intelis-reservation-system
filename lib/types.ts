@@ -1,4 +1,5 @@
 export type WidgetLanguage = "en" | "pt" | "zh";
+export type MealPeriod = "Lunch" | "Dinner" | "All Day";
 
 export type RestaurantSettings = {
   restaurant_id: string;
@@ -27,9 +28,9 @@ export type ReservationBlock = {
 
 export type ReservationTime = {
   day_of_week: number;
+  meal_period: MealPeriod;
   opens_at: string;
   closes_at: string;
-  last_reservation_time: string | null;
   is_closed: boolean;
 };
 
