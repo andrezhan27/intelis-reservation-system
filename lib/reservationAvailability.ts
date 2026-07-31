@@ -110,7 +110,7 @@ function getOpenTimeSections(
       settings.minimum_booking_notice_minutes || 0
     );
 
-    for (let slot = firstSlot; slot <= close; slot += slotIntervalMinutes) {
+    for (let slot = firstSlot; slot < close; slot += slotIntervalMinutes) {
       if (
         isWithinBookingNotice(
           dateValue,
