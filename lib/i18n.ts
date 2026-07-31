@@ -13,7 +13,7 @@ export const copy = {
     date: "Date",
     time: "Time",
     partySize: "Guests",
-    namePlaceholder: "Your full name",
+    namePlaceholder: "Your full name ",
     phonePlaceholder: "912 345 678",
     emailPlaceholder: "you@example.com",
     today: "Today",
