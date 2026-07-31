@@ -13,6 +13,7 @@ export type RestaurantSettings = {
   language: WidgetLanguage;
   booking_widget_enabled: boolean;
   min_party_size: number;
+  minimum_booking_notice_minutes: number;
   reservation_times: ReservationTime[];
   reservation_blocks: ReservationBlock[];
   privacy_policy_url: string;

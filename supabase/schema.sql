@@ -111,6 +111,7 @@ CREATE TABLE public.restaurant_settings (
   default_duration_minutes smallint NOT NULL DEFAULT 120 CHECK (default_duration_minutes >= 30 AND default_duration_minutes <= 480),
   booking_interval_minutes smallint NOT NULL DEFAULT 30 CHECK (booking_interval_minutes >= 5 AND booking_interval_minutes <= 180),
   default_buffer_minutes smallint NOT NULL DEFAULT 0 CHECK (default_buffer_minutes >= 0 AND default_buffer_minutes <= 180),
+  minimum_booking_notice_minutes integer NOT NULL DEFAULT 0 CHECK (minimum_booking_notice_minutes >= 0),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT restaurant_settings_pkey PRIMARY KEY (restaurant_id),

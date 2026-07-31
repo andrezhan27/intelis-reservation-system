@@ -49,14 +49,29 @@ function formatMinutesAsTime(minutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
-function getMinutesSinceMidnight(date: Date) {
-  const minutes = date.getHours() * 60 + date.getMinutes();
-
-  return date.getSeconds() > 0 || date.getMilliseconds() > 0 ? minutes + 1 : minutes;
-}
-
 export function isPastDateValue(dateValue: string, todayValue: string) {
   return dateValue < todayValue;
+}
+
+function isWithinBookingNotice(
+  dateValue: string,
+  slotMinutes: number,
+  minimumBookingNoticeMinutes: number,
+  now: Date
+) {
+  const slotDate = parseDateValue(dateValue);
+  slotDate.setHours(
+    Math.floor(slotMinutes / 60),
+    slotMinutes % 60,
+    0,
+    0
+  );
+
+  const bookingNoticeCutoff = new Date(
+    now.getTime() + minimumBookingNoticeMinutes * 60 * 1000
+  );
+
+  return slotDate.getTime() <= bookingNoticeCutoff.getTime();
 }
 
 function getOpenTimeSections(
@@ -67,9 +82,6 @@ function getOpenTimeSections(
   if (!dateValue) return [];
   const todayValue = formatDateValue(now);
   if (isPastDateValue(dateValue, todayValue)) return [];
-
-  const currentTimeMinimum =
-    dateValue === todayValue ? getMinutesSinceMidnight(now) : null;
 
   const selectedDay = parseDateValue(dateValue).getDay();
   const matchingTimes = settings.reservation_times.filter(
@@ -93,11 +105,22 @@ function getOpenTimeSections(
     }
 
     const firstSlot = Math.ceil(start / slotIntervalMinutes) * slotIntervalMinutes;
-    const minimumSlot =
-      currentTimeMinimum === null ? firstSlot : Math.max(firstSlot, currentTimeMinimum);
+    const minimumBookingNoticeMinutes = Math.max(
+      0,
+      settings.minimum_booking_notice_minutes || 0
+    );
 
     for (let slot = firstSlot; slot <= close; slot += slotIntervalMinutes) {
-      if (slot < minimumSlot) continue;
+      if (
+        isWithinBookingNotice(
+          dateValue,
+          slot,
+          minimumBookingNoticeMinutes,
+          now
+        )
+      ) {
+        continue;
+      }
 
       const periodSlots = sectionSlots.get(reservationTime.meal_period) || new Set<string>();
       periodSlots.add(formatMinutesAsTime(slot));
