@@ -783,6 +783,7 @@ a {
 
 .management-container {
   width: min(100%, 1120px);
+  min-width: 0;
   margin: 0 auto;
 }
 
@@ -791,6 +792,7 @@ a {
   grid-template-columns: minmax(300px, 0.9fr) minmax(440px, 1.1fr);
   align-items: center;
   gap: clamp(20px, 3vw, 32px);
+  min-width: 0;
 }
 
 .management-visual-column {
@@ -838,6 +840,7 @@ a {
 .management-card {
   display: grid;
   gap: 14px;
+  min-width: 0;
   padding: clamp(18px, 2.5vw, 24px);
   border: 1px solid color-mix(in srgb, var(--text-color, #251f1a) 10%, transparent);
   border-radius: 16px;
@@ -1312,11 +1315,13 @@ a {
 @media (max-width: 900px) {
   .management-layout {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .management-photo-card {
     position: static;
-    width: min(100%, 560px);
+    width: 100%;
+    aspect-ratio: 1;
     margin: 0 auto;
   }
 }
@@ -1381,12 +1386,16 @@ a {
   }
 
   .management-shell {
-    padding-block: 18px;
+    padding: 10px;
+  }
+
+  .management-layout {
+    gap: 12px;
   }
 
   .management-card {
-    gap: 20px;
-    padding: 18px;
+    gap: 16px;
+    padding: 16px;
   }
 
   .management-photo-card,
@@ -1396,10 +1405,23 @@ a {
 
   .management-heading {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    justify-content: stretch;
+    padding-bottom: 16px;
+  }
+
+  .management-heading > div:first-child {
+    min-width: 0;
   }
 
   .management-heading-meta {
-    justify-self: end;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    justify-self: stretch;
+    gap: 12px;
   }
 
   .management-detail {
@@ -1447,8 +1469,46 @@ a {
 }
 
 @media (max-width: 420px) {
-  .widget-shell {
+  .widget-shell:not(.management-shell) {
     padding: 8px;
+  }
+
+  .management-shell {
+    padding: 6px;
+  }
+
+  .management-card {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .management-heading {
+    gap: 14px;
+    padding-bottom: 14px;
+  }
+
+  .management-heading h1 {
+    font-size: 1.35rem;
+  }
+
+  .management-heading-meta .language-button {
+    min-width: 32px;
+    padding-inline: 6px;
+  }
+
+  .management-cancelled-state {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .management-cancelled-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .management-cancelled-state h2 {
+    font-size: 1.05rem;
   }
 
   .language-button {
