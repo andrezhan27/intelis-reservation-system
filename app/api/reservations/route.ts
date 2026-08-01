@@ -74,8 +74,9 @@ export async function POST(request: Request) {
   }
 
   const webhookUrl = process.env.N8N_RESERVATION_WEBHOOK_URL;
+  const internalApiKey = process.env.N8N_INTERNAL_API_KEY;
 
-  if (!webhookUrl) {
+  if (!webhookUrl || !internalApiKey) {
     return NextResponse.json(
       { success: false, message: errorMessage },
       { status: 500 }
@@ -86,7 +87,8 @@ export async function POST(request: Request) {
     const webhookResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-Internal-API-Key": internalApiKey
       },
       body: JSON.stringify(validation.payload)
     });

@@ -30,10 +30,19 @@ Create `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 N8N_RESERVATION_WEBHOOK_URL=https://your-n8n-domain.com/webhook/reservation-request
+N8N_MODIFY_BOOKING_WEBHOOK_URL=https://your-n8n-domain.com/webhook/modify-booking
+N8N_CANCEL_BOOKING_WEBHOOK_URL=https://your-n8n-domain.com/webhook/cancel-booking
+N8N_INTERNAL_API_KEY=your-shared-random-secret
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Only the Supabase anon key is used by the app to read public restaurant settings from the `restaurants` table. Reservation submissions go through `/api/reservations`, which forwards validated payloads to n8n using the private `N8N_RESERVATION_WEBHOOK_URL`.
+The Supabase anon key reads public restaurant settings. The service-role key is
+used only by Next.js server routes to resolve a customer management token; it is
+never exposed to the browser. Reservation submissions and customer changes go
+through Next.js API routes, which forward validated payloads to authenticated n8n
+webhooks.
 
 For local one-off testing, n8n test URLs usually look like `/webhook-test/...` and only work while the workflow is actively listening for a test event. For normal widget submissions, use the production `/webhook/...` URL and activate the n8n workflow.
 
@@ -53,6 +62,22 @@ Open `http://localhost:3000/starwok` after running the RLS policy in `supabase/s
 3. The form posts to `/api/reservations`.
 4. The API validates input, adds consent timestamps/source fields, normalizes `phone` to `phone_number`, and forwards the payload to n8n.
 5. n8n handles availability, pending booking creation, emails, and calendar actions.
+
+## Customer booking management
+
+Customer email links open:
+
+```text
+/{restaurantSlug}/manage/{customerManagementToken}
+```
+
+The page displays the original booking and allows changes to date, time, party
+size, and special requests, or an explicitly confirmed cancellation. The browser calls only
+the Next.js API. n8n webhook URLs, the internal API key, and Supabase service-role
+credentials remain server-only.
+
+The exact n8n request and response contracts are documented in
+[`docs/n8n-management-webhooks.md`](docs/n8n-management-webhooks.md).
 
 The widget does not create confirmed reservations directly.
 

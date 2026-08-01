@@ -6,7 +6,7 @@ CREATE TABLE public.capacity (
   restaurant_id text NOT NULL,
   dow_id integer NOT NULL CHECK (dow_id >= 0 AND dow_id <= 6),
   day_of_week text NOT NULL,
-  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text, 'All Day'::text])),
+  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text])),
   hour time without time zone,
   max_seats integer NOT NULL CHECK (max_seats >= 0),
   created_at timestamp with time zone DEFAULT now(),
@@ -19,7 +19,7 @@ CREATE TABLE public.bookings (
   restaurant_id text NOT NULL,
   date date NOT NULL,
   time time without time zone NOT NULL,
-  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text, 'All Day'::text])),
+  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text])),
   name text NOT NULL,
   party_size integer NOT NULL CHECK (party_size > 0),
   status text NOT NULL DEFAULT 'CONFIRMED'::text CHECK (status = ANY (ARRAY['PENDING'::text, 'CONFIRMED'::text, 'CANCELLED'::text, 'MODIFIED'::text, 'NO_SHOW'::text, 'REJECTED'::text])),
@@ -35,7 +35,10 @@ CREATE TABLE public.bookings (
   privacy_policy_accepted_at timestamp with time zone,
   privacy_policy_version text,
   confirmation_token text,
-  rejection_reason text,
+  rejection_reason text CHECK (rejection_reason IS NULL OR length(TRIM(BOTH FROM rejection_reason)) >= 1 AND length(TRIM(BOTH FROM rejection_reason)) <= 500),
+  customer_status text NOT NULL DEFAULT 'RESERVED'::text CHECK (customer_status = ANY (ARRAY['RESERVED'::text, 'PARTIALLY_ARRIVED'::text, 'ARRIVED'::text, 'SEATED'::text, 'BILL'::text, 'LEFT'::text, 'NO_SHOW'::text])),
+  customer_management_token text,
+  special_requests text,
   CONSTRAINT bookings_pkey PRIMARY KEY (reservation_id)
 );
 CREATE TABLE public.restaurants (
@@ -50,6 +53,7 @@ CREATE TABLE public.restaurants (
   language text,
   slug text UNIQUE,
   logo_url text,
+  photo_url text,
   primary_color text DEFAULT '#111111'::text,
   background_color text DEFAULT '#ffffff'::text,
   text_color text DEFAULT '#111111'::text,
@@ -89,9 +93,9 @@ CREATE TABLE public.reservation_times (
   is_closed boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text, 'All Day'::text])),
+  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text, 'All day'::text])),
   CONSTRAINT reservation_times_pkey PRIMARY KEY (id),
-  CONSTRAINT opening_hours_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
+  CONSTRAINT reservation_times_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
 CREATE TABLE public.restaurant_memberships (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -111,9 +115,10 @@ CREATE TABLE public.restaurant_settings (
   default_duration_minutes smallint NOT NULL DEFAULT 120 CHECK (default_duration_minutes >= 30 AND default_duration_minutes <= 480),
   booking_interval_minutes smallint NOT NULL DEFAULT 30 CHECK (booking_interval_minutes >= 5 AND booking_interval_minutes <= 180),
   default_buffer_minutes smallint NOT NULL DEFAULT 0 CHECK (default_buffer_minutes >= 0 AND default_buffer_minutes <= 180),
-  minimum_booking_notice_minutes integer NOT NULL DEFAULT 0 CHECK (minimum_booking_notice_minutes >= 0),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  max_party_size smallint,
+  minimum_booking_notice_minutes integer NOT NULL DEFAULT 0 CHECK (minimum_booking_notice_minutes >= 0),
   CONSTRAINT restaurant_settings_pkey PRIMARY KEY (restaurant_id),
   CONSTRAINT restaurant_settings_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
@@ -137,6 +142,7 @@ CREATE TABLE public.restaurant_areas (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   canvas_ratio numeric NOT NULL DEFAULT 1.500 CHECK (canvas_ratio >= 0.750 AND canvas_ratio <= 2.500),
   layout_revision bigint NOT NULL DEFAULT 1 CHECK (layout_revision > 0),
+  canvas_size text NOT NULL DEFAULT 'medium'::text CHECK (canvas_size = ANY (ARRAY['small'::text, 'medium'::text, 'large'::text, 'extra_large'::text])),
   CONSTRAINT restaurant_areas_pkey PRIMARY KEY (id),
   CONSTRAINT restaurant_areas_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
@@ -151,9 +157,10 @@ CREATE TABLE public.dining_tables (
   position_x numeric NOT NULL DEFAULT 0 CHECK (position_x >= 0::numeric AND position_x <= 100::numeric),
   position_y numeric NOT NULL DEFAULT 0 CHECK (position_y >= 0::numeric AND position_y <= 100::numeric),
   active boolean NOT NULL DEFAULT true,
-  operational_state text NOT NULL DEFAULT 'available'::text CHECK (operational_state = ANY (ARRAY['available'::text, 'cleaning'::text, 'blocked'::text, 'unavailable'::text])),
+  operational_state text NOT NULL DEFAULT 'available'::text CHECK (operational_state = ANY (ARRAY['available'::text, 'unavailable'::text])),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  orientation text NOT NULL DEFAULT 'horizontal'::text CHECK (orientation = ANY (ARRAY['horizontal'::text, 'vertical'::text])),
   CONSTRAINT dining_tables_pkey PRIMARY KEY (id),
   CONSTRAINT dining_tables_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT dining_tables_area_id_fkey FOREIGN KEY (area_id) REFERENCES public.restaurant_areas(id)
@@ -214,4 +221,37 @@ CREATE TABLE public.reservation_idempotency_requests (
   CONSTRAINT reservation_idempotency_requests_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT reservation_idempotency_requests_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.bookings(reservation_id),
   CONSTRAINT reservation_idempotency_requests_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.dining_table_service_states (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  restaurant_id text NOT NULL,
+  table_id uuid NOT NULL,
+  service_date date NOT NULL,
+  meal_period text NOT NULL CHECK (meal_period = ANY (ARRAY['Lunch'::text, 'Dinner'::text])),
+  unavailable boolean NOT NULL DEFAULT true,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT dining_table_service_states_pkey PRIMARY KEY (id),
+  CONSTRAINT dining_table_service_states_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
+  CONSTRAINT dining_table_service_states_table_id_fkey FOREIGN KEY (table_id) REFERENCES public.dining_tables(id),
+  CONSTRAINT dining_table_service_states_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.reservation_change_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  restaurant_id text NOT NULL,
+  reservation_id text NOT NULL,
+  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['MODIFY'::text, 'CANCEL'::text])),
+  status text NOT NULL CHECK (status = ANY (ARRAY['PENDING'::text, 'APPLIED'::text, 'REJECTED'::text, 'FAILED'::text])),
+  before_values jsonb NOT NULL,
+  requested_changes jsonb NOT NULL DEFAULT '{}'::jsonb,
+  source text NOT NULL DEFAULT 'CUSTOMER_MANAGEMENT'::text,
+  idempotency_key text NOT NULL UNIQUE,
+  requested_at timestamp with time zone NOT NULL DEFAULT now(),
+  resolved_at timestamp with time zone,
+  reviewed_by uuid,
+  CONSTRAINT reservation_change_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT reservation_change_requests_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
+  CONSTRAINT reservation_change_requests_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.bookings(reservation_id),
+  CONSTRAINT reservation_change_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)
 );

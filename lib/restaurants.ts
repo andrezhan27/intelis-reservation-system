@@ -35,6 +35,7 @@ type ReservationTimeRow = {
 };
 
 type RestaurantSettingsRow = {
+  max_party_size: number | null;
   minimum_booking_notice_minutes: number | null;
 };
 
@@ -76,7 +77,7 @@ const publicReservationTimeColumns = [
   "is_closed"
 ].join(",");
 const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
-const restaurantSettingsColumns = "minimum_booking_notice_minutes";
+const restaurantSettingsColumns = "max_party_size,minimum_booking_notice_minutes";
 const restaurantTimeZone = "Europe/Lisbon";
 const restaurantDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: restaurantTimeZone,
@@ -333,7 +334,7 @@ async function getReservationBlocksData(
   return reservationBlocksResult.data || [];
 }
 
-async function getMinimumBookingNoticeMinutes(
+async function getRestaurantSettingsData(
   supabase: NonNullable<ReturnType<typeof getSupabaseAnonClient>>,
   restaurantId: string
 ) {
@@ -348,14 +349,25 @@ async function getMinimumBookingNoticeMinutes(
       message: restaurantSettingsResult.error.message
     });
 
-    return 0;
+    return {
+      maxPartySize: null,
+      minimumBookingNoticeMinutes: 0
+    };
   }
 
-  const value = restaurantSettingsResult.data?.minimum_booking_notice_minutes;
+  const maximum = restaurantSettingsResult.data?.max_party_size;
+  const notice = restaurantSettingsResult.data?.minimum_booking_notice_minutes;
 
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.floor(value))
-    : 0;
+  return {
+    maxPartySize:
+      typeof maximum === "number" && Number.isFinite(maximum)
+        ? Math.max(1, Math.floor(maximum))
+        : null,
+    minimumBookingNoticeMinutes:
+      typeof notice === "number" && Number.isFinite(notice)
+        ? Math.max(0, Math.floor(notice))
+        : 0
+  };
 }
 
 async function fetchRestaurantSettings(
@@ -395,11 +407,11 @@ async function fetchRestaurantSettings(
   const [
     reservationTimesData,
     reservationBlocksData,
-    minimumBookingNoticeMinutes
+    restaurantSettingsData
   ] = await Promise.all([
     getReservationTimesData(supabase, data.id),
     getReservationBlocksData(supabase, data.id, data.slug),
-    getMinimumBookingNoticeMinutes(supabase, data.id)
+    getRestaurantSettingsData(supabase, data.id)
   ]);
 
   return {
@@ -414,7 +426,9 @@ async function fetchRestaurantSettings(
     language: normalizeLanguage(data.language),
     booking_widget_enabled: data.booking_widget_enabled === true,
     min_party_size: Math.max(1, data.min_party_size || 1),
-    minimum_booking_notice_minutes: minimumBookingNoticeMinutes,
+    max_party_size: restaurantSettingsData.maxPartySize,
+    minimum_booking_notice_minutes:
+      restaurantSettingsData.minimumBookingNoticeMinutes,
     reservation_times: normalizeReservationTimes(reservationTimesData),
     reservation_blocks: normalizeReservationBlocks(reservationBlocksData),
     privacy_policy_url: data.privacy_policy_url || "#",
