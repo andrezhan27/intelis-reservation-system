@@ -881,7 +881,7 @@ a {
 .management-heading h1,
 .management-section-heading h2,
 .management-cancel-confirmation h2,
-.management-cancelled-state h2,
+.management-success-state h2,
 .management-error-card h1 {
   margin: 0;
   color: var(--text-color, #251f1a);
@@ -894,7 +894,7 @@ a {
 
 .management-heading p:not(.management-eyebrow),
 .management-cancel-confirmation p,
-.management-cancelled-state p,
+.management-success-state p,
 .management-error-card p {
   margin: 4px 0 0;
   color: color-mix(in srgb, var(--text-color, #251f1a) 66%, transparent);
@@ -1234,7 +1234,7 @@ a {
 
 .management-section-heading h2,
 .management-cancel-confirmation h2,
-.management-cancelled-state h2 {
+.management-success-state h2 {
   font-size: 1.15rem;
 }
 
@@ -1266,7 +1266,7 @@ a {
   color: #9a211b;
 }
 
-.management-cancelled-state {
+.management-success-state {
   display: grid;
   grid-template-columns: 42px 1fr;
   align-items: start;
@@ -1277,7 +1277,7 @@ a {
   padding: 17px;
 }
 
-.management-cancelled-icon {
+.management-success-icon {
   display: grid;
   place-items: center;
   width: 42px;
@@ -1289,7 +1289,7 @@ a {
   font-weight: 900;
 }
 
-.management-cancelled-state p {
+.management-success-state p {
   color: #316047;
 }
 
@@ -1496,18 +1496,18 @@ a {
     padding-inline: 6px;
   }
 
-  .management-cancelled-state {
+  .management-success-state {
     grid-template-columns: 36px minmax(0, 1fr);
     gap: 10px;
     padding: 14px;
   }
 
-  .management-cancelled-icon {
+  .management-success-icon {
     width: 36px;
     height: 36px;
   }
 
-  .management-cancelled-state h2 {
+  .management-success-state h2 {
     font-size: 1.05rem;
   }
 

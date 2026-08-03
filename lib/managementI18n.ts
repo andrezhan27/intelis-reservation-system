@@ -27,6 +27,16 @@ export const managementCopy = {
     cancelling: "Cancelling...",
     cancelledTitle: "Reservation cancelled",
     cancelledDescription: "This reservation can no longer be modified.",
+    modificationPendingMessage:
+      "Your change request was sent to the restaurant for confirmation.",
+    modificationPendingTitle: "Change request sent",
+    modificationPendingDescription:
+      "The restaurant has received your request. Your reservation will be updated once the changes are confirmed.",
+    modificationConfirmedMessage: "Your reservation was updated successfully.",
+    modificationConfirmedTitle: "Reservation updated",
+    modificationConfirmedDescription:
+      "Your changes have been saved and your reservation is confirmed.",
+    noChanges: "There are no changes to save.",
     pendingNotice: "Changes to this reservation require restaurant confirmation.",
     linkErrorTitle: "Reservation unavailable",
     linkErrorDescription:
@@ -73,6 +83,16 @@ export const managementCopy = {
     cancelling: "A cancelar...",
     cancelledTitle: "Reserva cancelada",
     cancelledDescription: "Esta reserva já não pode ser alterada.",
+    modificationPendingMessage:
+      "O pedido de alteração foi enviado ao restaurante para confirmação.",
+    modificationPendingTitle: "Pedido de alteração enviado",
+    modificationPendingDescription:
+      "O restaurante recebeu o seu pedido. A reserva será atualizada quando as alterações forem confirmadas.",
+    modificationConfirmedMessage: "A reserva foi alterada com sucesso.",
+    modificationConfirmedTitle: "Reserva alterada",
+    modificationConfirmedDescription:
+      "As alterações foram guardadas e a sua reserva está confirmada.",
+    noChanges: "Não existem alterações para guardar.",
     pendingNotice: "As alterações a esta reserva precisam de confirmação do restaurante.",
     linkErrorTitle: "Reserva indisponível",
     linkErrorDescription:
@@ -118,6 +138,14 @@ export const managementCopy = {
     cancelling: "正在取消...",
     cancelledTitle: "预订已取消",
     cancelledDescription: "此预订无法再修改。",
+    modificationPendingMessage: "更改请求已发送至餐厅等待确认。",
+    modificationPendingTitle: "更改请求已发送",
+    modificationPendingDescription:
+      "餐厅已收到您的请求。更改确认后，预订信息将会更新。",
+    modificationConfirmedMessage: "预订已成功更新。",
+    modificationConfirmedTitle: "预订已更新",
+    modificationConfirmedDescription: "更改已保存，您的预订已确认。",
+    noChanges: "没有需要保存的更改。",
     pendingNotice: "此预订的更改需要餐厅确认。",
     linkErrorTitle: "无法查看预订",
     linkErrorDescription: "此管理链接无效或已不可用。如需帮助，请联系餐厅。",

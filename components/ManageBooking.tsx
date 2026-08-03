@@ -34,9 +34,14 @@ type FormValues = {
 type ApiResponse = {
   success?: boolean;
   pending?: boolean;
+  changed?: boolean;
   already_cancelled?: boolean;
   message?: string;
   errors?: Record<string, string>;
+};
+
+type ModificationResult = {
+  pending: boolean;
 };
 
 const localeByLanguage: Record<WidgetLanguage, string> = {
@@ -69,6 +74,8 @@ export function ManageBooking({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const [modificationResult, setModificationResult] =
+    useState<ModificationResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const today = useMemo(() => formatDateValue(new Date()), []);
   const canManage = ["PENDING", "CONFIRMED", "MODIFIED"].includes(
@@ -120,6 +127,7 @@ export function ManageBooking({
 
   function openAction(nextAction: ManageAction) {
     setMessage(null);
+    setModificationResult(null);
     setErrors({});
 
     if (nextAction === "modify") {
@@ -170,10 +178,22 @@ export function ManageBooking({
         return;
       }
 
-      setMessage(body?.message || t.save);
+      if (body?.changed === false) {
+        setMessage(t.noChanges);
+        setModificationResult(null);
+      } else {
+        const pending = body?.pending === true;
+
+        setMessage(
+          pending
+            ? t.modificationPendingMessage
+            : t.modificationConfirmedMessage
+        );
+        setModificationResult({ pending });
+      }
       setMessageType("success");
 
-      if (body?.pending !== true) {
+      if (body?.changed !== false && body?.pending !== true) {
         setDisplayBooking((current) => ({
           ...current,
           ...values,
@@ -209,6 +229,7 @@ export function ManageBooking({
       }
 
       setDisplayBooking((current) => ({ ...current, status: "CANCELLED" }));
+      setModificationResult(null);
       setMessage(body?.message || t.cancelledTitle);
       setMessageType("success");
       setAction("details");
@@ -375,11 +396,29 @@ export function ManageBooking({
       ) : null}
 
       {displayBooking.status === "CANCELLED" ? (
-        <div className="management-cancelled-state">
-          <span className="management-cancelled-icon" aria-hidden="true">✓</span>
+        <div className="management-success-state">
+          <span className="management-success-icon" aria-hidden="true">✓</span>
           <div>
             <h2>{t.cancelledTitle}</h2>
             <p>{t.cancelledDescription}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {modificationResult ? (
+        <div className="management-success-state">
+          <span className="management-success-icon" aria-hidden="true">✓</span>
+          <div>
+            <h2>
+              {modificationResult.pending
+                ? t.modificationPendingTitle
+                : t.modificationConfirmedTitle}
+            </h2>
+            <p>
+              {modificationResult.pending
+                ? t.modificationPendingDescription
+                : t.modificationConfirmedDescription}
+            </p>
           </div>
         </div>
       ) : null}

@@ -30,6 +30,7 @@ Next.js sends a `POST` request resembling:
   "restaurant_id": "restaurant-id",
   "require_confirmation": true,
   "original": {
+    "name": "Alex Smith",
     "date": "2026-08-20",
     "time": "19:30",
     "party_size": 2,
@@ -102,6 +103,7 @@ Next.js sends a `POST` request resembling:
   "reservation_id": "RES-123",
   "restaurant_id": "restaurant-id",
   "original": {
+    "name": "Alex Smith",
     "date": "2026-08-20",
     "time": "19:30",
     "party_size": 2,

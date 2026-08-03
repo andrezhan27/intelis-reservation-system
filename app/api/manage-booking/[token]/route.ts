@@ -78,6 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return json({
       success: true,
       pending: false,
+      changed: false,
       message: "Não existem alterações para guardar."
     });
   }
@@ -125,6 +126,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     restaurant_id: booking.restaurant_id,
     require_confirmation: restaurant.require_confirmation,
     original: {
+      name: booking.name,
       date: booking.date,
       time: booking.time,
       party_size: booking.party_size,
@@ -150,6 +152,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   return json({
     success: true,
     pending: restaurant.require_confirmation,
+    changed: true,
     message: restaurant.require_confirmation
       ? "O pedido de alteração foi enviado ao restaurante para confirmação."
       : "A reserva foi alterada com sucesso."

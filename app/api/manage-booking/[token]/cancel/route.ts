@@ -52,6 +52,7 @@ export async function POST(_request: Request, context: RouteContext) {
     reservation_id: booking.reservation_id,
     restaurant_id: booking.restaurant_id,
     original: {
+      name: booking.name,
       date: booking.date,
       time: booking.time,
       party_size: booking.party_size,
