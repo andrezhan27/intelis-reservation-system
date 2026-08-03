@@ -147,6 +147,7 @@ a {
 
 .field {
   display: grid;
+  align-self: start;
   gap: 8px;
 }
 
@@ -216,6 +217,17 @@ a {
   background: #fff;
   border-color: var(--primary-color, #8b2f22);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color, #8b2f22) 16%, transparent);
+}
+
+.field input[aria-invalid="true"],
+.phone-input-group.invalid {
+  border-color: #b42318;
+}
+
+.phone-input-group.invalid:focus-within,
+.field input[aria-invalid="true"]:focus {
+  border-color: #b42318;
+  box-shadow: 0 0 0 4px rgb(180 35 24 / 14%);
 }
 
 .phone-input-group > input,

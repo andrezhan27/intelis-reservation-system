@@ -1,6 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  formatPhoneForSubmission,
+  isValidEmailAddress,
+  isValidPhoneNumberForCountry
+} from "@/lib/contactValidation";
 import { countryDialCodes, defaultDialCountryId } from "@/lib/countryDialCodes";
 import { copy, mealPeriodCopy } from "@/lib/i18n";
 import {
@@ -21,16 +26,20 @@ type Props = {
   language: WidgetLanguage;
 };
 
-type FormErrors = Partial<Record<keyof ReservationFormValues, string>>;
+type FormError =
+  | string
+  | { code: "required" | "invalidPhone" | "invalidEmail" | "noTimes" }
+  | { code: "minGuests"; count: number };
+type FormErrors = Partial<Record<keyof ReservationFormValues, FormError>>;
+type ContactField = "phone" | "email";
 type SubmitState = "idle" | "submitting" | "success" | "error";
 type ReservationApiResponse = {
   success: boolean;
   code?: string;
   message?: string;
-  errors?: FormErrors;
+  errors?: Partial<Record<keyof ReservationFormValues, string>>;
 };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const dateWindowSize = 7;
 const localeByLanguage: Record<WidgetLanguage, string> = {
   en: "en-GB",
@@ -80,20 +89,6 @@ function normalizeCountrySearch(value: string) {
     .toLowerCase();
 }
 
-function formatPhoneForSubmission(dialCode: string, phone: string) {
-  const trimmedPhone = phone.trim();
-
-  if (trimmedPhone.startsWith("+")) {
-    return trimmedPhone.replace(/[^\d+]/g, "");
-  }
-
-  if (trimmedPhone.startsWith("00")) {
-    return `+${trimmedPhone.slice(2).replace(/\D/g, "")}`;
-  }
-
-  return `${dialCode}${trimmedPhone.replace(/\D/g, "")}`;
-}
-
 export function ReservationForm({ settings, language }: Props) {
   const t = copy[language];
   const minPartySize = Math.max(1, settings.min_party_size || 1);
@@ -103,6 +98,9 @@ export function ReservationForm({ settings, language }: Props) {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [touchedContactFields, setTouchedContactFields] = useState<
+    Record<ContactField, boolean>
+  >({ phone: false, email: false });
   const [dateWindowIndex, setDateWindowIndex] = useState(0);
   const [selectedDialCountryId, setSelectedDialCountryId] = useState(defaultDialCountryId);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
@@ -245,29 +243,103 @@ export function ReservationForm({ settings, language }: Props) {
     value: ReservationFormValues[K]
   ) {
     setValues((current) => ({ ...current, [key]: value }));
+
+    if (key === "phone" && touchedContactFields.phone) {
+      setErrors((current) => ({
+        ...current,
+        phone: getPhoneError(String(value))
+      }));
+      return;
+    }
+
+    if (key === "email" && touchedContactFields.email) {
+      setErrors((current) => ({
+        ...current,
+        email: getEmailError(String(value))
+      }));
+      return;
+    }
+
     setErrors((current) => ({ ...current, [key]: undefined }));
+  }
+
+  function getPhoneError(
+    phone: string,
+    countryId = selectedDialCountry.id,
+    dialCode = selectedDialCountry.code
+  ) {
+    if (!phone.trim()) return { code: "required" } as const;
+    if (!isValidPhoneNumberForCountry(countryId, dialCode, phone)) {
+      return { code: "invalidPhone" } as const;
+    }
+
+    return undefined;
+  }
+
+  function getEmailError(email: string) {
+    if (!email.trim()) return { code: "required" } as const;
+    if (!isValidEmailAddress(email)) return { code: "invalidEmail" } as const;
+
+    return undefined;
+  }
+
+  function getErrorMessage(error: FormError | undefined) {
+    if (!error) return undefined;
+    if (typeof error === "string") return error;
+    if (error.code === "minGuests") {
+      return formatMinimumGuestsMessage(t.minGuests, error.count);
+    }
+
+    return t[error.code];
+  }
+
+  function validateContactField(field: ContactField) {
+    setTouchedContactFields((current) => ({ ...current, [field]: true }));
+    setErrors((current) => ({
+      ...current,
+      [field]: field === "phone" ? getPhoneError(values.phone) : getEmailError(values.email)
+    }));
   }
 
   function validateClient() {
     const nextErrors: FormErrors = {};
+    const phoneError = getPhoneError(values.phone);
+    const emailError = getEmailError(values.email);
 
-    if (!values.name.trim()) nextErrors.name = t.required;
-    if (!values.phone.trim()) nextErrors.phone = t.required;
-    if (!values.email.trim()) nextErrors.email = t.required;
-    if (values.email && !emailPattern.test(values.email)) nextErrors.email = t.invalidEmail;
-    if (!values.date) nextErrors.date = t.required;
-    if (!values.time) nextErrors.time = availableTimeOptions.length > 0 ? t.required : t.noTimes;
-    if (values.date && isPastDateValue(values.date, today)) nextErrors.date = t.required;
-    if (values.time && !availableTimeOptions.includes(values.time)) nextErrors.time = t.noTimes;
+    if (!values.name.trim()) nextErrors.name = { code: "required" };
+    if (phoneError) nextErrors.phone = phoneError;
+    if (emailError) nextErrors.email = emailError;
+    if (!values.date) nextErrors.date = { code: "required" };
+    if (!values.time) {
+      nextErrors.time = {
+        code: availableTimeOptions.length > 0 ? "required" : "noTimes"
+      };
+    }
+    if (values.date && isPastDateValue(values.date, today)) {
+      nextErrors.date = { code: "required" };
+    }
+    if (values.time && !availableTimeOptions.includes(values.time)) {
+      nextErrors.time = { code: "noTimes" };
+    }
     if (!Number.isInteger(values.party_size) || values.party_size < minPartySize) {
-      nextErrors.party_size = formatMinimumGuestsMessage(t.minGuests, minPartySize);
+      nextErrors.party_size = { code: "minGuests", count: minPartySize };
     }
     setErrors(nextErrors);
+    setTouchedContactFields({ phone: true, email: true });
     return Object.keys(nextErrors).length === 0;
   }
 
   function selectDialCountry(countryId: string) {
+    const country =
+      countryDialCodes.find((candidate) => candidate.id === countryId) || countryDialCodes[0];
+
     setSelectedDialCountryId(countryId);
+    if (touchedContactFields.phone) {
+      setErrors((current) => ({
+        ...current,
+        phone: getPhoneError(values.phone, country.id, country.code)
+      }));
+    }
     setIsCountryMenuOpen(false);
     setCountrySearch("");
   }
@@ -290,7 +362,11 @@ export function ReservationForm({ settings, language }: Props) {
         },
         body: JSON.stringify({
           ...values,
-          phone: formatPhoneForSubmission(selectedDialCountry.code, values.phone),
+          phone: formatPhoneForSubmission(
+            selectedDialCountry.id,
+            selectedDialCountry.code,
+            values.phone
+          ),
           privacy_policy_accepted: true
         })
       });
@@ -350,12 +426,14 @@ export function ReservationForm({ settings, language }: Props) {
             onChange={(event) => updateValue("name", event.target.value)}
             aria-invalid={Boolean(errors.name)}
           />
-          {errors.name ? <span className="field-error">{errors.name}</span> : null}
+          {errors.name ? (
+            <span className="field-error">{getErrorMessage(errors.name)}</span>
+          ) : null}
         </div>
 
         <div className="field">
           <label htmlFor="phone">{t.phone}</label>
-          <div className="phone-input-group">
+          <div className={`phone-input-group${errors.phone ? " invalid" : ""}`}>
             <div className="country-code-combobox" ref={countryDropdownRef}>
               <button
                 type="button"
@@ -421,12 +499,19 @@ export function ReservationForm({ settings, language }: Props) {
               autoComplete="tel-national"
               inputMode="tel"
               placeholder={t.phonePlaceholder}
+              maxLength={30}
               value={values.phone}
               onChange={(event) => updateValue("phone", event.target.value)}
+              onBlur={() => validateContactField("phone")}
               aria-invalid={Boolean(errors.phone)}
+              aria-describedby={errors.phone ? "phone-error" : undefined}
             />
           </div>
-          {errors.phone ? <span className="field-error">{errors.phone}</span> : null}
+          {errors.phone ? (
+            <span id="phone-error" className="field-error">
+              {getErrorMessage(errors.phone)}
+            </span>
+          ) : null}
         </div>
 
         <div className="field">
@@ -437,11 +522,18 @@ export function ReservationForm({ settings, language }: Props) {
             type="email"
             autoComplete="email"
             placeholder={t.emailPlaceholder}
+            maxLength={254}
             value={values.email}
             onChange={(event) => updateValue("email", event.target.value)}
+            onBlur={() => validateContactField("email")}
             aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
           />
-          {errors.email ? <span className="field-error">{errors.email}</span> : null}
+          {errors.email ? (
+            <span id="email-error" className="field-error">
+              {getErrorMessage(errors.email)}
+            </span>
+          ) : null}
         </div>
 
         <div className="field">
@@ -478,7 +570,7 @@ export function ReservationForm({ settings, language }: Props) {
             </button>
           </div>
           {errors.party_size ? (
-            <span className="field-error">{errors.party_size}</span>
+            <span className="field-error">{getErrorMessage(errors.party_size)}</span>
           ) : null}
         </div>
 
@@ -543,7 +635,9 @@ export function ReservationForm({ settings, language }: Props) {
                   <span aria-hidden="true">›</span>
                 </button>
               </div>
-              {errors.date ? <span className="field-error">{errors.date}</span> : null}
+              {errors.date ? (
+                <span className="field-error">{getErrorMessage(errors.date)}</span>
+              ) : null}
             </section>
 
             <section className="slot-picker-card" aria-label={t.selectTime}>
@@ -579,7 +673,9 @@ export function ReservationForm({ settings, language }: Props) {
               ) : (
                 <p className="empty-picker-state">{t.noTimes}</p>
               )}
-              {errors.time ? <span className="field-error">{errors.time}</span> : null}
+              {errors.time ? (
+                <span className="field-error">{getErrorMessage(errors.time)}</span>
+              ) : null}
             </section>
           </div>
         </div>

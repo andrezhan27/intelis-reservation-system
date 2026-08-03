@@ -1,11 +1,14 @@
 import type { ReservationFormValues, ReservationWebhookPayload } from "@/lib/types";
+import {
+  isValidEmailAddress,
+  isValidInternationalPhoneNumber
+} from "@/lib/contactValidation";
 
 export type ValidationResult =
   | { ok: true; payload: ReservationWebhookPayload; honeypot: false }
   | { ok: true; honeypot: true }
   | { ok: false; errors: Record<string, string> };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^\d{2}:\d{2}$/;
 
@@ -56,8 +59,11 @@ export function validateReservationInput(input: unknown): ValidationResult {
   }
   if (!name) errors.name = "Name is required.";
   if (!phone) errors.phone = "Phone is required.";
+  if (phone && !isValidInternationalPhoneNumber(phone)) {
+    errors.phone = "Phone number is invalid.";
+  }
   if (!email) errors.email = "Email is required.";
-  if (email && !emailPattern.test(email)) errors.email = "Email is invalid.";
+  if (email && !isValidEmailAddress(email)) errors.email = "Email is invalid.";
   if (!date) errors.date = "Date is required.";
   if (date && !datePattern.test(date)) errors.date = "Date is invalid.";
   if (!time) errors.time = "Time is required.";

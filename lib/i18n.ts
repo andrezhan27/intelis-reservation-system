@@ -44,6 +44,7 @@ export const copy = {
       "Your reservation request has been received. It is not confirmed yet. The restaurant will review it and contact you shortly.",
     error:
       "This time may not be available. Please choose another time or contact the restaurant directly.",
+    invalidPhone: "Enter a valid phone number.",
     invalidEmail: "Enter a valid email address.",
     minGuests: "Guests must be at least {count}.",
     privacyRequired: "Please accept the Privacy Policy to continue.",
@@ -93,6 +94,7 @@ export const copy = {
       "Recebemos o seu pedido de reserva. A reserva ainda não está confirmada. O restaurante irá analisar o pedido e contactá-lo em breve.",
     error:
       "Este horário poderá não estar disponível. Por favor escolha outro horário ou contacte diretamente o restaurante.",
+    invalidPhone: "Introduza um número de telefone válido.",
     invalidEmail: "Introduza um email válido.",
     minGuests: "O número de pessoas deve ser pelo menos {count}.",
     privacyRequired: "Aceite a Política de Privacidade para continuar.",
@@ -138,6 +140,7 @@ export const copy = {
     configMissing: "预订组件尚未配置。",
     success: "我们已收到您的预订请求。预订尚未确认，餐厅会尽快联系您。",
     error: "该时间可能无法预订。请选择其他时间或直接联系餐厅。",
+    invalidPhone: "请输入有效的电话号码。",
     invalidEmail: "请输入有效的邮箱地址。",
     minGuests: "人数至少为 {count}。",
     privacyRequired: "请接受隐私政策后继续。",

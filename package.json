@@ -7,11 +7,12 @@
     "dev:clean": "npm run clean && next dev",
     "build": "next build",
     "start": "next start",
-    "clean": "rm -rf .next",
+    "clean": "rm -rf .next .next-dev",
     "lint": "next lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "libphonenumber-js": "^1.13.10",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
