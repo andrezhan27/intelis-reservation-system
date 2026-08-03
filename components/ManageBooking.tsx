@@ -184,11 +184,6 @@ export function ManageBooking({
       } else {
         const pending = body?.pending === true;
 
-        setMessage(
-          pending
-            ? t.modificationPendingMessage
-            : t.modificationConfirmedMessage
-        );
         setModificationResult({ pending });
       }
       setMessageType("success");
