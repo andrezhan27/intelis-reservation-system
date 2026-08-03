@@ -97,9 +97,13 @@ Successful n8n submissions return:
 ```json
 {
   "success": true,
-  "message": "Your reservation request has been received. It is not confirmed yet. The restaurant will review it and contact you shortly."
+  "message": "Your reservation request has been received. It is not confirmed yet. The restaurant will review it and contact you shortly.",
+  "confirmation_required": true
 }
 ```
+
+When `restaurants.require_confirmation` is false, the response instead reports
+that the reservation is confirmed and returns `"confirmation_required": false`.
 
 If n8n reports unavailable, the API returns:
 

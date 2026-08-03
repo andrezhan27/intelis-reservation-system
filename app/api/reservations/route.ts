@@ -6,6 +6,8 @@ import { validateReservationInput } from "@/lib/validation";
 const validationMessage = "Please check the reservation details and try again.";
 const successMessage =
   "Your reservation request has been received. It is not confirmed yet. The restaurant will review it and contact you shortly.";
+const confirmedSuccessMessage =
+  "Your reservation is confirmed. The restaurant will review the details and contact you if needed.";
 const unavailableMessage =
   "This time may not be available. Please choose another time or contact the restaurant directly.";
 const errorMessage =
@@ -20,6 +22,7 @@ type N8nResponseBody = {
 
 export async function POST(request: Request) {
   let body: unknown;
+  let confirmationRequired = true;
 
   try {
     body = await request.json();
@@ -71,6 +74,37 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+
+    if (validation.payload.party_size < settings.min_party_size) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: validationMessage,
+          errors: {
+            party_size: `Party size must be at least ${settings.min_party_size}.`
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      settings.max_party_size !== null &&
+      validation.payload.party_size > settings.max_party_size
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: validationMessage,
+          errors: {
+            party_size: `Party size cannot exceed ${settings.max_party_size}.`
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    confirmationRequired = settings.require_confirmation;
   }
 
   const webhookUrl = process.env.N8N_RESERVATION_WEBHOOK_URL;
@@ -117,7 +151,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, message: successMessage },
+      {
+        success: true,
+        message: confirmationRequired ? successMessage : confirmedSuccessMessage,
+        confirmation_required: confirmationRequired
+      },
       { status: 200 }
     );
   } catch (error) {

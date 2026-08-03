@@ -29,7 +29,7 @@ type Props = {
 type FormError =
   | string
   | { code: "required" | "invalidPhone" | "invalidEmail" | "noTimes" }
-  | { code: "minGuests"; count: number };
+  | { code: "minGuests" | "maxGuests"; count: number };
 type FormErrors = Partial<Record<keyof ReservationFormValues, FormError>>;
 type ContactField = "phone" | "email";
 type SubmitState = "idle" | "submitting" | "success" | "error";
@@ -37,6 +37,7 @@ type ReservationApiResponse = {
   success: boolean;
   code?: string;
   message?: string;
+  confirmation_required?: boolean;
   errors?: Partial<Record<keyof ReservationFormValues, string>>;
 };
 
@@ -92,11 +93,18 @@ function normalizeCountrySearch(value: string) {
 export function ReservationForm({ settings, language }: Props) {
   const t = copy[language];
   const minPartySize = Math.max(1, settings.min_party_size || 1);
-  const initialPartySize = Math.max(2, minPartySize);
+  const maxPartySize = settings.max_party_size;
+  const initialPartySize =
+    maxPartySize === null
+      ? Math.max(2, minPartySize)
+      : Math.min(maxPartySize, Math.max(2, minPartySize));
   const [now, setNow] = useState(() => new Date());
   const today = useMemo(() => formatDateValue(now), [now]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [confirmationRequired, setConfirmationRequired] = useState(
+    settings.require_confirmation
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [touchedContactFields, setTouchedContactFields] = useState<
     Record<ContactField, boolean>
@@ -130,6 +138,16 @@ export function ReservationForm({ settings, language }: Props) {
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (maxPartySize === null) return;
+
+    setValues((current) =>
+      current.party_size > maxPartySize
+        ? { ...current, party_size: maxPartySize }
+        : current
+    );
+  }, [maxPartySize]);
 
   const dateQuickOptions = useMemo(() => {
     const todayDate = parseDateValue(today);
@@ -286,8 +304,8 @@ export function ReservationForm({ settings, language }: Props) {
   function getErrorMessage(error: FormError | undefined) {
     if (!error) return undefined;
     if (typeof error === "string") return error;
-    if (error.code === "minGuests") {
-      return formatMinimumGuestsMessage(t.minGuests, error.count);
+    if (error.code === "minGuests" || error.code === "maxGuests") {
+      return formatMinimumGuestsMessage(t[error.code], error.count);
     }
 
     return t[error.code];
@@ -323,6 +341,8 @@ export function ReservationForm({ settings, language }: Props) {
     }
     if (!Number.isInteger(values.party_size) || values.party_size < minPartySize) {
       nextErrors.party_size = { code: "minGuests", count: minPartySize };
+    } else if (maxPartySize !== null && values.party_size > maxPartySize) {
+      nextErrors.party_size = { code: "maxGuests", count: maxPartySize };
     }
     setErrors(nextErrors);
     setTouchedContactFields({ phone: true, email: true });
@@ -386,6 +406,11 @@ export function ReservationForm({ settings, language }: Props) {
       }
 
       setStatusMessage(null);
+      setConfirmationRequired(
+        typeof body?.confirmation_required === "boolean"
+          ? body.confirmation_required
+          : settings.require_confirmation
+      );
       setSubmitState("success");
     } catch {
       setStatusMessage(t.error);
@@ -394,13 +419,19 @@ export function ReservationForm({ settings, language }: Props) {
   }
 
   if (submitState === "success") {
+    const successTitle = confirmationRequired
+      ? t.successTitle
+      : t.confirmedSuccessTitle;
+    const successMessage = confirmationRequired ? t.success : t.confirmedSuccess;
+    const successNote = confirmationRequired ? t.successNote : t.confirmedSuccessNote;
+
     return (
       <div className="success-card" role="status">
         <div className="success-mark" aria-hidden="true" />
         <div>
-          <h2>{t.successTitle}</h2>
-          <p>{statusMessage || t.success}</p>
-          <p className="success-note">{t.successNote}</p>
+          <h2>{successTitle}</h2>
+          <p>{statusMessage || successMessage}</p>
+          <p className="success-note">{successNote}</p>
         </div>
       </div>
     );
@@ -554,17 +585,33 @@ export function ReservationForm({ settings, language }: Props) {
               name="party_size"
               type="number"
               min={minPartySize}
+              max={maxPartySize ?? undefined}
               inputMode="numeric"
               value={values.party_size}
-              onChange={(event) =>
-                updateValue("party_size", Number.parseInt(event.target.value, 10) || 0)
-              }
+              onChange={(event) => {
+                const nextPartySize = Number.parseInt(event.target.value, 10) || 0;
+
+                updateValue(
+                  "party_size",
+                  maxPartySize === null
+                    ? nextPartySize
+                    : Math.min(maxPartySize, nextPartySize)
+                );
+              }}
               aria-invalid={Boolean(errors.party_size)}
             />
             <button
               type="button"
               aria-label="Increase guests"
-              onClick={() => updateValue("party_size", values.party_size + 1)}
+              disabled={maxPartySize !== null && values.party_size >= maxPartySize}
+              onClick={() =>
+                updateValue(
+                  "party_size",
+                  maxPartySize === null
+                    ? values.party_size + 1
+                    : Math.min(maxPartySize, values.party_size + 1)
+                )
+              }
             >
               +
             </button>

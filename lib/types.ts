@@ -14,6 +14,7 @@ export type RestaurantSettings = {
   booking_widget_enabled: boolean;
   min_party_size: number;
   max_party_size: number | null;
+  require_confirmation: boolean;
   minimum_booking_notice_minutes: number;
   reservation_times: ReservationTime[];
   reservation_blocks: ReservationBlock[];

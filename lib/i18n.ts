@@ -47,9 +47,14 @@ export const copy = {
     invalidPhone: "Enter a valid phone number.",
     invalidEmail: "Enter a valid email address.",
     minGuests: "Guests must be at least {count}.",
+    maxGuests: "Guests cannot exceed {count}.",
     privacyRequired: "Please accept the Privacy Policy to continue.",
     successTitle: "Request received",
-    successNote: "You will receive a confirmation from the restaurant shortly."
+    successNote: "You will receive a confirmation from the restaurant shortly.",
+    confirmedSuccessTitle: "Reservation confirmed",
+    confirmedSuccess: "Your reservation is confirmed.",
+    confirmedSuccessNote:
+      "The restaurant will review the details and contact you if needed."
   },
   pt: {
     title: "Reservar mesa",
@@ -97,9 +102,14 @@ export const copy = {
     invalidPhone: "Introduza um número de telefone válido.",
     invalidEmail: "Introduza um email válido.",
     minGuests: "O número de pessoas deve ser pelo menos {count}.",
+    maxGuests: "O número de pessoas não pode exceder {count}.",
     privacyRequired: "Aceite a Política de Privacidade para continuar.",
     successTitle: "Pedido recebido",
-    successNote: "Receberá uma confirmação do restaurante em breve."
+    successNote: "Receberá uma confirmação do restaurante em breve.",
+    confirmedSuccessTitle: "Reserva confirmada",
+    confirmedSuccess: "A sua reserva está confirmada.",
+    confirmedSuccessNote:
+      "O restaurante irá rever os detalhes e contactá-lo se necessário."
   },
   zh: {
     title: "预订餐桌",
@@ -143,9 +153,13 @@ export const copy = {
     invalidPhone: "请输入有效的电话号码。",
     invalidEmail: "请输入有效的邮箱地址。",
     minGuests: "人数至少为 {count}。",
+    maxGuests: "人数不能超过 {count}。",
     privacyRequired: "请接受隐私政策后继续。",
     successTitle: "请求已收到",
-    successNote: "餐厅会尽快向您确认。"
+    successNote: "餐厅会尽快向您确认。",
+    confirmedSuccessTitle: "预订已确认",
+    confirmedSuccess: "您的预订已确认。",
+    confirmedSuccessNote: "餐厅仍会查看预订详情，并在需要时与您联系。"
   }
 } satisfies Record<WidgetLanguage, Record<string, string>>;
 

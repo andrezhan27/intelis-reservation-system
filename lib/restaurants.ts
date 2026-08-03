@@ -21,6 +21,7 @@ type RestaurantRow = {
   language: string | null;
   booking_widget_enabled: boolean | null;
   min_party_size?: number | null;
+  require_confirmation: boolean | null;
   privacy_policy_url: string | null;
   privacy_policy_version: string | null;
 };
@@ -61,6 +62,7 @@ const basePublicColumns = [
   "font_family",
   "language",
   "booking_widget_enabled",
+  "require_confirmation",
   "privacy_policy_url",
   "privacy_policy_version"
 ];
@@ -427,6 +429,7 @@ async function fetchRestaurantSettings(
     booking_widget_enabled: data.booking_widget_enabled === true,
     min_party_size: Math.max(1, data.min_party_size || 1),
     max_party_size: restaurantSettingsData.maxPartySize,
+    require_confirmation: data.require_confirmation === true,
     minimum_booking_notice_minutes:
       restaurantSettingsData.minimumBookingNoticeMinutes,
     reservation_times: normalizeReservationTimes(reservationTimesData),
