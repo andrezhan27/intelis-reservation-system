@@ -60,6 +60,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const validation = validateManageBookingUpdate(
     body,
     booking,
+    settings?.min_party_size ?? 1,
     settings?.max_party_size ?? null
   );
 

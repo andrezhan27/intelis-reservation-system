@@ -203,3 +203,14 @@ export function isReservationTimeAvailable(
 ) {
   return getAvailableTimeOptions(dateValue, settings, now).includes(timeValue);
 }
+
+export function getMealPeriodForReservationTime(
+  dateValue: string,
+  timeValue: string,
+  settings: RestaurantSettings,
+  now: Date
+) {
+  return getTimeSlotSections(dateValue, settings, now).find((section) =>
+    section.options.some((option) => option.value === timeValue && !option.isBlocked)
+  )?.mealPeriod ?? null;
+}

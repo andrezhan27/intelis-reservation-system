@@ -20,6 +20,7 @@ const allowedKeys = new Set(["date", "time", "party_size", "special_requests"]);
 export function validateManageBookingUpdate(
   input: unknown,
   booking: ManagementBooking,
+  minPartySize: number,
   maxPartySize: number | null
 ): ManageBookingValidation {
   if (!isPlainObject(input)) {
@@ -48,8 +49,8 @@ export function validateManageBookingUpdate(
     errors.time = "Invalid time.";
   }
 
-  if (!Number.isInteger(partySize) || partySize < 1) {
-    errors.party_size = "Party size must be at least 1.";
+  if (!Number.isInteger(partySize) || partySize < minPartySize) {
+    errors.party_size = `Party size must be at least ${minPartySize}.`;
   } else if (maxPartySize !== null && partySize > maxPartySize) {
     errors.party_size = `Party size cannot exceed ${maxPartySize}.`;
   }

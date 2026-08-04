@@ -20,7 +20,6 @@ type RestaurantRow = {
   font_family: string | null;
   language: string | null;
   booking_widget_enabled: boolean | null;
-  min_party_size?: number | null;
   require_confirmation: boolean | null;
   privacy_policy_url: string | null;
   privacy_policy_version: string | null;
@@ -36,6 +35,7 @@ type ReservationTimeRow = {
 };
 
 type RestaurantSettingsRow = {
+  min_party_size: number | null;
   max_party_size: number | null;
   minimum_booking_notice_minutes: number | null;
 };
@@ -67,8 +67,7 @@ const basePublicColumns = [
   "privacy_policy_version"
 ];
 
-const publicColumns = [...basePublicColumns, "min_party_size"].join(",");
-const legacyPublicColumns = basePublicColumns.join(",");
+const publicColumns = basePublicColumns.join(",");
 
 const publicReservationTimeColumns = [
   "dow_id",
@@ -79,7 +78,8 @@ const publicReservationTimeColumns = [
   "is_closed"
 ].join(",");
 const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
-const restaurantSettingsColumns = "max_party_size,minimum_booking_notice_minutes";
+const restaurantSettingsColumns =
+  "min_party_size,max_party_size,minimum_booking_notice_minutes";
 const restaurantTimeZone = "Europe/Lisbon";
 const restaurantDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: restaurantTimeZone,
@@ -352,15 +352,21 @@ async function getRestaurantSettingsData(
     });
 
     return {
+      minPartySize: 1,
       maxPartySize: null,
       minimumBookingNoticeMinutes: 0
     };
   }
 
+  const minimum = restaurantSettingsResult.data?.min_party_size;
   const maximum = restaurantSettingsResult.data?.max_party_size;
   const notice = restaurantSettingsResult.data?.minimum_booking_notice_minutes;
 
   return {
+    minPartySize:
+      typeof minimum === "number" && Number.isFinite(minimum)
+        ? Math.max(1, Math.floor(minimum))
+        : 1,
     maxPartySize:
       typeof maximum === "number" && Number.isFinite(maximum)
         ? Math.max(1, Math.floor(maximum))
@@ -381,26 +387,13 @@ async function fetchRestaurantSettings(
     return null;
   }
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("restaurants")
     .select(publicColumns)
     .eq("slug", restaurantSlug)
     .eq("active", true)
     .eq("booking_widget_enabled", true)
     .maybeSingle<RestaurantRow>();
-
-  if (error && error.message.includes("min_party_size")) {
-    const legacyResult = await supabase
-      .from("restaurants")
-      .select(legacyPublicColumns)
-      .eq("slug", restaurantSlug)
-      .eq("active", true)
-      .eq("booking_widget_enabled", true)
-      .maybeSingle<RestaurantRow>();
-
-    data = legacyResult.data;
-    error = legacyResult.error;
-  }
 
   if (error || !data) {
     return null;
@@ -427,7 +420,7 @@ async function fetchRestaurantSettings(
     font_family: getFontFamilyStack(data.font_family),
     language: normalizeLanguage(data.language),
     booking_widget_enabled: data.booking_widget_enabled === true,
-    min_party_size: Math.max(1, data.min_party_size || 1),
+    min_party_size: restaurantSettingsData.minPartySize,
     max_party_size: restaurantSettingsData.maxPartySize,
     require_confirmation: data.require_confirmation === true,
     minimum_booking_notice_minutes:
@@ -435,8 +428,7 @@ async function fetchRestaurantSettings(
     reservation_times: normalizeReservationTimes(reservationTimesData),
     reservation_blocks: normalizeReservationBlocks(reservationBlocksData),
     privacy_policy_url: data.privacy_policy_url || "#",
-    privacy_policy_version: data.privacy_policy_version || "current",
-    terms_url: null
+    privacy_policy_version: data.privacy_policy_version || "current"
   };
 }
 

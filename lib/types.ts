@@ -20,7 +20,6 @@ export type RestaurantSettings = {
   reservation_blocks: ReservationBlock[];
   privacy_policy_url: string;
   privacy_policy_version: string;
-  terms_url: string | null;
 };
 
 export type ReservationBlock = {

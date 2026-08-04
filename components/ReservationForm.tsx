@@ -16,6 +16,7 @@ import {
   parseDateValue
 } from "@/lib/reservationAvailability";
 import type {
+  MealPeriod,
   ReservationFormValues,
   RestaurantSettings,
   WidgetLanguage
@@ -39,6 +40,15 @@ type ReservationApiResponse = {
   message?: string;
   confirmation_required?: boolean;
   errors?: Partial<Record<keyof ReservationFormValues, string>>;
+};
+type CapacityApiResponse = {
+  success?: boolean;
+  meal_periods?: Partial<Record<MealPeriod, boolean>>;
+};
+type CapacityAvailabilityState = {
+  requestKey: string;
+  status: "loading" | "ready" | "error";
+  mealPeriods: Partial<Record<MealPeriod, boolean>>;
 };
 
 const dateWindowSize = 7;
@@ -90,6 +100,23 @@ function normalizeCountrySearch(value: string) {
     .toLowerCase();
 }
 
+function getCapacityDisplayStatus(
+  mealPeriod: MealPeriod,
+  requestKey: string,
+  availability: CapacityAvailabilityState | null
+) {
+  if (mealPeriod === "All Day") return "available" as const;
+  if (!availability || availability.requestKey !== requestKey) {
+    return "loading" as const;
+  }
+  if (availability.status === "error") return "error" as const;
+  if (availability.status === "loading") return "loading" as const;
+
+  return availability.mealPeriods[mealPeriod] === false
+    ? "unavailable" as const
+    : "available" as const;
+}
+
 export function ReservationForm({ settings, language }: Props) {
   const t = copy[language];
   const minPartySize = Math.max(1, settings.min_party_size || 1);
@@ -132,12 +159,64 @@ export function ReservationForm({ settings, language }: Props) {
     privacy_policy_version: settings.privacy_policy_version,
     website: ""
   });
+  const [capacityAvailability, setCapacityAvailability] =
+    useState<CapacityAvailabilityState | null>(null);
+  const [capacityRefreshVersion, setCapacityRefreshVersion] = useState(0);
+  const capacityRequestKey = `${values.date}:${values.party_size}`;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(new Date()), 30000);
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (
+      !values.date ||
+      !Number.isInteger(values.party_size) ||
+      values.party_size < 1
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const requestKey = `${values.date}:${values.party_size}`;
+
+    setCapacityAvailability((current) =>
+      current?.requestKey === requestKey
+        ? current
+        : { requestKey, status: "loading", mealPeriods: {} }
+    );
+
+    void fetch(
+      `/api/availability?restaurant_slug=${encodeURIComponent(settings.slug)}` +
+        `&date=${encodeURIComponent(values.date)}` +
+        `&party_size=${values.party_size}`,
+      { cache: "no-store", signal: controller.signal }
+    )
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as
+          | CapacityApiResponse
+          | null;
+
+        if (!response.ok || body?.success !== true || !body.meal_periods) {
+          throw new Error("Availability request failed");
+        }
+
+        setCapacityAvailability({
+          requestKey,
+          status: "ready",
+          mealPeriods: body.meal_periods
+        });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+
+        setCapacityAvailability({ requestKey, status: "error", mealPeriods: {} });
+      });
+
+    return () => controller.abort();
+  }, [capacityRefreshVersion, now, settings.slug, values.date, values.party_size]);
 
   useEffect(() => {
     if (maxPartySize === null) return;
@@ -194,10 +273,17 @@ export function ReservationForm({ settings, language }: Props) {
   const availableTimeOptions = useMemo(
     () =>
       timeSlotSections
+        .filter(
+          (section) =>
+            section.mealPeriod === "All Day" ||
+            (capacityAvailability?.requestKey === capacityRequestKey &&
+              capacityAvailability.status === "ready" &&
+              capacityAvailability.mealPeriods[section.mealPeriod] !== false)
+        )
         .flatMap((section) => section.options)
         .filter((option) => !option.isBlocked)
         .map((option) => option.value),
-    [timeSlotSections]
+    [capacityAvailability, capacityRequestKey, timeSlotSections]
   );
   const filteredDialCountries = useMemo(() => {
     const searchTerm = normalizeCountrySearch(countrySearch.trim());
@@ -400,6 +486,9 @@ export function ReservationForm({ settings, language }: Props) {
       }
 
       if (!response.ok || body?.success === false) {
+        if (body?.code === "UNAVAILABLE") {
+          setCapacityRefreshVersion((current) => current + 1);
+        }
         setStatusMessage(body?.message || t.error);
         setSubmitState("error");
         return;
@@ -696,26 +785,44 @@ export function ReservationForm({ settings, language }: Props) {
 
               {timeSlotSections.length > 0 ? (
                 <div className="time-slot-sections" aria-label={t.time}>
-                  {timeSlotSections.map((section) => (
-                    <div className="time-slot-section" key={section.mealPeriod}>
-                      <h3>{mealPeriodCopy[language][section.mealPeriod]}</h3>
-                      <div className="time-slot-grid">
-                        {section.options.map((option) => (
-                          <button
-                            type="button"
-                            className="time-slot-button"
-                            key={`${section.mealPeriod}-${option.value}`}
-                            aria-pressed={values.time === option.value}
-                            disabled={option.isBlocked}
-                            title={option.isBlocked ? t.error : undefined}
-                            onClick={() => updateValue("time", option.value)}
-                          >
-                            {option.value}
-                          </button>
-                        ))}
+                  {timeSlotSections.map((section) => {
+                    const capacityStatus = getCapacityDisplayStatus(
+                      section.mealPeriod,
+                      capacityRequestKey,
+                      capacityAvailability
+                    );
+
+                    return (
+                      <div className="time-slot-section" key={section.mealPeriod}>
+                        <h3>{mealPeriodCopy[language][section.mealPeriod]}</h3>
+                        {capacityStatus === "available" ? (
+                          <div className="time-slot-grid">
+                            {section.options.map((option) => (
+                              <button
+                                type="button"
+                                className="time-slot-button"
+                                key={`${section.mealPeriod}-${option.value}`}
+                                aria-pressed={values.time === option.value}
+                                disabled={option.isBlocked}
+                                title={option.isBlocked ? t.error : undefined}
+                                onClick={() => updateValue("time", option.value)}
+                              >
+                                {option.value}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="empty-picker-state" role="status">
+                            {capacityStatus === "unavailable"
+                              ? t.mealPeriodFull
+                              : capacityStatus === "error"
+                                ? t.availabilityCheckError
+                                : t.checkingAvailability}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="empty-picker-state">{t.noTimes}</p>
@@ -768,15 +875,6 @@ export function ReservationForm({ settings, language }: Props) {
           <a href={settings.privacy_policy_url} target="_blank" rel="noreferrer">
             {t.privacyPolicy}
           </a>
-          {settings.terms_url ? (
-            <>
-              {" "}
-              {t.and}{" "}
-              <a href={settings.terms_url} target="_blank" rel="noreferrer">
-                {t.terms}
-              </a>
-            </>
-          ) : null}
           .
         </p>
       </div>

@@ -103,6 +103,7 @@ export function ManageBooking({
 
     return [values.time, ...availableTimes].sort();
   }, [availableTimes, values.time]);
+  const minPartySize = Math.max(1, availabilitySettings?.min_party_size ?? 1);
   const maxPartySize = availabilitySettings?.max_party_size ?? null;
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function ManageBooking({
   }
 
   function shiftPartySize(change: -1 | 1) {
-    const nextPartySize = Math.max(1, values.party_size + change);
+    const nextPartySize = Math.max(minPartySize, values.party_size + change);
     const boundedPartySize =
       maxPartySize === null
         ? nextPartySize
@@ -290,7 +291,7 @@ export function ManageBooking({
             nextLabel={t.increaseGuests}
             previousSymbol="−"
             nextSymbol="+"
-            previousDisabled={values.party_size <= 1}
+            previousDisabled={values.party_size <= minPartySize}
             nextDisabled={
               maxPartySize !== null && values.party_size >= maxPartySize
             }

@@ -37,7 +37,6 @@ export type ManagementRestaurant = {
   text_color: string;
   font_family: string;
   language: WidgetLanguage;
-  min_party_size: number;
   require_confirmation: boolean;
 };
 
@@ -75,7 +74,6 @@ type RestaurantRow = {
   text_color: string | null;
   font_family: string | null;
   language: string | null;
-  min_party_size: number | null;
   require_confirmation: boolean | null;
   active: boolean | null;
 };
@@ -105,7 +103,6 @@ const restaurantColumns = [
   "text_color",
   "font_family",
   "language",
-  "min_party_size",
   "require_confirmation",
   "active"
 ].join(",");
@@ -215,7 +212,6 @@ export async function loadManagementBooking(
         text_color: restaurantResult.data.text_color || "#251f1a",
         font_family: getFontFamilyStack(restaurantResult.data.font_family),
         language: normalizeLanguage(restaurantResult.data.language),
-        min_party_size: Math.max(1, restaurantResult.data.min_party_size || 1),
         require_confirmation: restaurantResult.data.require_confirmation === true
       }
     }

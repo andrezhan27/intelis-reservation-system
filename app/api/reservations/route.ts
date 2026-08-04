@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { getCapacityAvailability } from "@/lib/capacityAvailability";
 import { getRestaurantSettings } from "@/lib/restaurants";
-import { isReservationTimeAvailable } from "@/lib/reservationAvailability";
+import {
+  getMealPeriodForReservationTime,
+  isReservationTimeAvailable
+} from "@/lib/reservationAvailability";
 import { validateReservationInput } from "@/lib/validation";
 
 const validationMessage = "Please check the reservation details and try again.";
@@ -101,6 +105,36 @@ export async function POST(request: Request) {
           }
         },
         { status: 400 }
+      );
+    }
+
+    const mealPeriod = getMealPeriodForReservationTime(
+      validation.payload.date,
+      validation.payload.time,
+      settings,
+      new Date()
+    );
+    const capacity = await getCapacityAvailability(
+      settings.restaurant_id,
+      validation.payload.date,
+      validation.payload.party_size
+    );
+
+    if (!capacity.ok) {
+      return NextResponse.json(
+        { success: false, message: errorMessage },
+        { status: 503 }
+      );
+    }
+
+    if (mealPeriod && capacity.mealPeriods[mealPeriod] === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "UNAVAILABLE",
+          message: unavailableMessage
+        },
+        { status: 409 }
       );
     }
 

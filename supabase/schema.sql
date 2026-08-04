@@ -36,7 +36,7 @@ CREATE TABLE public.bookings (
   privacy_policy_version text,
   confirmation_token text,
   rejection_reason text CHECK (rejection_reason IS NULL OR length(TRIM(BOTH FROM rejection_reason)) >= 1 AND length(TRIM(BOTH FROM rejection_reason)) <= 500),
-  customer_status text NOT NULL DEFAULT 'RESERVED'::text CHECK (customer_status = ANY (ARRAY['RESERVED'::text, 'PARTIALLY_ARRIVED'::text, 'ARRIVED'::text, 'SEATED'::text, 'BILL'::text, 'LEFT'::text, 'NO_SHOW'::text])),
+  customer_status text NOT NULL DEFAULT 'RESERVED'::text CHECK (customer_status = ANY (ARRAY['RESERVED'::text, 'ARRIVED'::text, 'LEFT'::text, 'NO_SHOW'::text])),
   customer_management_token text,
   special_requests text,
   CONSTRAINT bookings_pkey PRIMARY KEY (reservation_id)
@@ -53,7 +53,6 @@ CREATE TABLE public.restaurants (
   language text,
   slug text UNIQUE,
   logo_url text,
-  photo_url text,
   primary_color text DEFAULT '#111111'::text,
   background_color text DEFAULT '#ffffff'::text,
   text_color text DEFAULT '#111111'::text,
@@ -61,9 +60,9 @@ CREATE TABLE public.restaurants (
   booking_widget_enabled boolean DEFAULT false,
   privacy_policy_url text,
   privacy_policy_version text DEFAULT 'v1'::text,
-  min_party_size integer NOT NULL DEFAULT 1,
   require_confirmation boolean NOT NULL DEFAULT false,
   implementated_at date,
+  photo_url text,
   CONSTRAINT restaurants_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.call_logs (
@@ -119,6 +118,7 @@ CREATE TABLE public.restaurant_settings (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   max_party_size smallint,
   minimum_booking_notice_minutes integer NOT NULL DEFAULT 0 CHECK (minimum_booking_notice_minutes >= 0),
+  min_party_size smallint DEFAULT '1'::smallint,
   CONSTRAINT restaurant_settings_pkey PRIMARY KEY (restaurant_id),
   CONSTRAINT restaurant_settings_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
@@ -240,15 +240,15 @@ CREATE TABLE public.dining_table_service_states (
 CREATE TABLE public.reservation_change_requests (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   restaurant_id text NOT NULL,
-  reservation_id text NOT NULL,
+  reservation_id text,
   action_type text NOT NULL CHECK (action_type = ANY (ARRAY['MODIFY'::text, 'CANCEL'::text])),
   status text NOT NULL CHECK (status = ANY (ARRAY['PENDING'::text, 'APPLIED'::text, 'REJECTED'::text, 'FAILED'::text])),
   before_values jsonb NOT NULL,
   requested_changes jsonb NOT NULL DEFAULT '{}'::jsonb,
   source text NOT NULL DEFAULT 'CUSTOMER_MANAGEMENT'::text,
-  idempotency_key text NOT NULL UNIQUE,
+  idempotency_key text UNIQUE,
   requested_at timestamp with time zone NOT NULL DEFAULT now(),
-  resolved_at timestamp with time zone,
+  notification_seen_at timestamp with time zone,
   reviewed_by uuid,
   CONSTRAINT reservation_change_requests_pkey PRIMARY KEY (id),
   CONSTRAINT reservation_change_requests_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
