@@ -201,7 +201,6 @@ CREATE TABLE public.reservation_blocks (
   ended_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  max_bookable_covers integer CHECK (max_bookable_covers IS NULL OR max_bookable_covers >= 0 AND max_bookable_covers <= 9999),
   CONSTRAINT reservation_blocks_pkey PRIMARY KEY (id),
   CONSTRAINT reservation_blocks_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT reservation_blocks_area_id_fkey FOREIGN KEY (area_id) REFERENCES public.restaurant_areas(id),

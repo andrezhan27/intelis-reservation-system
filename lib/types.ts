@@ -16,6 +16,7 @@ export type RestaurantSettings = {
   max_party_size: number | null;
   require_confirmation: boolean;
   minimum_booking_notice_minutes: number;
+  booking_interval_minutes: number;
   reservation_times: ReservationTime[];
   reservation_blocks: ReservationBlock[];
   privacy_policy_url: string;

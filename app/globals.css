@@ -1105,19 +1105,21 @@ a {
 }
 
 .management-picker-control {
+  position: relative;
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) 30px;
   align-items: center;
   gap: 10px;
   width: min(100%, 280px);
   margin-left: auto;
+  cursor: pointer;
 }
 
 .management-picker-control::before {
   content: "";
 }
 
-.management-picker-control > span {
+.management-picker-control > .management-edit-value {
   overflow: hidden;
   color: var(--text-color, #251f1a);
   font-weight: 850;
@@ -1145,12 +1147,16 @@ a {
     transform 150ms ease;
 }
 
-.management-picker-trigger:hover,
-.management-picker-trigger:focus-within {
+.management-picker-control:hover .management-picker-trigger,
+.management-picker-control:focus-within .management-picker-trigger {
   border-color: var(--primary-color, #8b2f22);
   background: var(--primary-color, #8b2f22);
   color: #fff;
   transform: translateY(-1px);
+}
+
+.management-picker-control:focus-within .management-edit-value {
+  color: var(--primary-color, #8b2f22);
 }
 
 .management-picker-trigger svg {
@@ -1164,8 +1170,8 @@ a {
   stroke-width: 1.8;
 }
 
-.management-picker-trigger input,
-.management-picker-trigger select {
+.management-picker-control input,
+.management-picker-control select {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1175,7 +1181,12 @@ a {
   opacity: 0;
 }
 
-.management-picker-trigger select:disabled {
+.management-picker-control.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.management-picker-control select:disabled {
   cursor: not-allowed;
 }
 
@@ -1463,7 +1474,7 @@ a {
     margin-left: 0;
   }
 
-  .management-picker-control > span {
+  .management-picker-control > .management-edit-value {
     text-align: center;
   }
 

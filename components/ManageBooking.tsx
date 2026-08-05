@@ -582,20 +582,31 @@ function DatePickerControl({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="management-picker-control">
+    <label className="management-picker-control" title={label}>
       <span className="management-edit-value">{displayValue}</span>
-      <label className="management-picker-trigger" title={label}>
+      <span className="management-picker-trigger" aria-hidden="true">
         <CalendarIcon />
-        <input
-          type="date"
-          value={value}
-          min={minimum}
-          aria-label={label}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </label>
-    </div>
+      </span>
+      <input
+        type="date"
+        value={value}
+        min={minimum}
+        aria-label={label}
+        onClick={(event) => showNativeDatePicker(event.currentTarget)}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
+}
+
+function showNativeDatePicker(input: HTMLInputElement) {
+  if (typeof input.showPicker !== "function") return;
+
+  try {
+    input.showPicker();
+  } catch {
+    // The input's normal click behavior remains available as a fallback.
+  }
 }
 
 function TimePickerControl({
@@ -609,26 +620,31 @@ function TimePickerControl({
   label: string;
   onChange: (value: string) => void;
 }) {
+  const disabled = times.length === 0;
+
   return (
-    <div className="management-picker-control">
+    <label
+      className={`management-picker-control${disabled ? " is-disabled" : ""}`}
+      title={label}
+    >
       <span className="management-edit-value">{value}</span>
-      <label className="management-picker-trigger" title={label}>
+      <span className="management-picker-trigger" aria-hidden="true">
         <ClockIcon />
-        <select
-          value={value === "—" ? "" : value}
-          aria-label={label}
-          disabled={times.length === 0}
-          onChange={(event) => onChange(event.target.value)}
-        >
-          {value === "—" ? <option value="">—</option> : null}
-          {times.map((time) => (
-            <option key={time} value={time}>
-              {time}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
+      </span>
+      <select
+        value={value === "—" ? "" : value}
+        aria-label={label}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {value === "—" ? <option value="">—</option> : null}
+        {times.map((time) => (
+          <option key={time} value={time}>
+            {time}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

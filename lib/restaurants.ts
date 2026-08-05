@@ -38,6 +38,7 @@ type RestaurantSettingsRow = {
   min_party_size: number | null;
   max_party_size: number | null;
   minimum_booking_notice_minutes: number | null;
+  booking_interval_minutes: number | null;
 };
 
 type ReservationBlockRow = {
@@ -79,7 +80,7 @@ const publicReservationTimeColumns = [
 ].join(",");
 const reservationBlockColumns = ["starts_at", "ends_at"].join(",");
 const restaurantSettingsColumns =
-  "min_party_size,max_party_size,minimum_booking_notice_minutes";
+  "min_party_size,max_party_size,minimum_booking_notice_minutes,booking_interval_minutes";
 const restaurantTimeZone = "Europe/Lisbon";
 const restaurantDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: restaurantTimeZone,
@@ -354,13 +355,15 @@ async function getRestaurantSettingsData(
     return {
       minPartySize: 1,
       maxPartySize: null,
-      minimumBookingNoticeMinutes: 0
+      minimumBookingNoticeMinutes: 0,
+      bookingIntervalMinutes: 30
     };
   }
 
   const minimum = restaurantSettingsResult.data?.min_party_size;
   const maximum = restaurantSettingsResult.data?.max_party_size;
   const notice = restaurantSettingsResult.data?.minimum_booking_notice_minutes;
+  const bookingInterval = restaurantSettingsResult.data?.booking_interval_minutes;
 
   return {
     minPartySize:
@@ -374,7 +377,11 @@ async function getRestaurantSettingsData(
     minimumBookingNoticeMinutes:
       typeof notice === "number" && Number.isFinite(notice)
         ? Math.max(0, Math.floor(notice))
-        : 0
+        : 0,
+    bookingIntervalMinutes:
+      typeof bookingInterval === "number" && Number.isFinite(bookingInterval)
+        ? Math.min(180, Math.max(5, Math.floor(bookingInterval)))
+        : 30
   };
 }
 
@@ -425,6 +432,7 @@ async function fetchRestaurantSettings(
     require_confirmation: data.require_confirmation === true,
     minimum_booking_notice_minutes:
       restaurantSettingsData.minimumBookingNoticeMinutes,
+    booking_interval_minutes: restaurantSettingsData.bookingIntervalMinutes,
     reservation_times: normalizeReservationTimes(reservationTimesData),
     reservation_blocks: normalizeReservationBlocks(reservationBlocksData),
     privacy_policy_url: data.privacy_policy_url || "#",

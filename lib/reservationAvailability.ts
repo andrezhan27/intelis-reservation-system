@@ -1,7 +1,5 @@
 import type { MealPeriod, RestaurantSettings } from "@/lib/types";
 
-const slotIntervalMinutes = 30;
-
 export type TimeSlotOption = {
   value: string;
   isBlocked: boolean;
@@ -93,6 +91,7 @@ function getOpenTimeSections(
   }
 
   const sectionSlots = new Map<MealPeriod, Set<string>>();
+  const slotIntervalMinutes = settings.booking_interval_minutes;
 
   matchingTimes.forEach((reservationTime) => {
     if (reservationTime.is_closed) return [];
@@ -104,13 +103,12 @@ function getOpenTimeSections(
       return;
     }
 
-    const firstSlot = Math.ceil(start / slotIntervalMinutes) * slotIntervalMinutes;
     const minimumBookingNoticeMinutes = Math.max(
       0,
       settings.minimum_booking_notice_minutes || 0
     );
 
-    for (let slot = firstSlot; slot < close; slot += slotIntervalMinutes) {
+    for (let slot = start; slot < close; slot += slotIntervalMinutes) {
       if (
         isWithinBookingNotice(
           dateValue,
@@ -154,7 +152,7 @@ function isReservationTimeBlocked(
     return true;
   }
 
-  const slotEnd = slotStart + slotIntervalMinutes;
+  const slotEnd = slotStart + settings.booking_interval_minutes;
 
   return settings.reservation_blocks.some(
     (block) =>
